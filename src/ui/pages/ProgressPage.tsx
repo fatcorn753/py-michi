@@ -19,7 +19,7 @@ export function ProgressPage() {
     a.href = URL.createObjectURL(blob);
     const d = new Date();
     // 日付は利用者の地域の日付にする(toISOString は UTC なので、日本の朝は前日になる)
-    a.download = `c-michi-${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}.json`;
+    a.download = `py-michi-${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}.json`;
     a.click();
     URL.revokeObjectURL(a.href);
   };

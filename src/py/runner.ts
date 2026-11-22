@@ -43,8 +43,16 @@ export class PyRunner {
     this.ready.catch(() => {}); // 読み込み失敗は onStatus で知らせる
   }
 
-  async run(code: string, opts: PyRunOptions = {}, timeoutMs = 5000): Promise<PyRunResult> {
-    this.stop();
+  /** 実行の順番待ち。採点と例題の実行が同時に来ても、互いに止め合わないよう 1 つずつ流す */
+  private chain: Promise<unknown> = Promise.resolve();
+
+  run(code: string, opts: PyRunOptions = {}, timeoutMs = 5000): Promise<PyRunResult> {
+    const job = this.chain.then(() => this.runOne(code, opts, timeoutMs));
+    this.chain = job.catch(() => {});
+    return job;
+  }
+
+  private async runOne(code: string, opts: PyRunOptions, timeoutMs: number): Promise<PyRunResult> {
     await this.ready;
     const id = this.nextId++;
     return new Promise((resolve) => {

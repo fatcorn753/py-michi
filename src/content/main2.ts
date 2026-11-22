@@ -1,204 +1,140 @@
-// 本編 4〜6: 配列と文字列・関数・ポインタ
+// 本編 4〜6: リストと文字列・関数・名前とオブジェクト
 import type { Unit } from './types';
-import { C, r, src } from './util';
+import { L, r, src } from './util';
 
-const L = (...s: string[]) => s.join('\n');
-
-export const ARRAY: Unit = {
-  id: 'array',
-  title: '配列と文字列',
-  summary: '同じ型の値を並べて扱います。範囲外の読み書きと、文字列の終わりの \\0 を目で確かめます。',
-  kcs: ['array', 'bounds', 'string'],
+export const LIST: Unit = {
+  id: 'list',
+  title: 'リストと文字列',
+  summary: '値を並べて持つリストと、文字の並びである文字列を扱います。添字は 0 から、終わりは含まない、を身に付けます。',
+  kcs: ['list', 'slice', 'string'],
   lessons: [
     {
-      id: 'l1', title: '配列',
+      id: 'l1', title: 'リストの添字と追加',
       steps: [
         {
-          kind: 'read', title: '添字は 0 から始まる',
+          kind: 'read', title: 'リストは番号の付いた並び',
           body: L(
-            '- `int a[5];` は int の箱を 5 つ並べたものです。箱は `a[0]` から `a[4]` までで、`a[5]` はありません。',
-            '- 全部を順に見るときは `for (int i = 0; i < 5; i++)` と書きます。`<=` にすると 1 つはみ出します。',
-            '- 本物の C は、はみ出した読み書きを止めません。隣の変数を壊したり、たまたま動いたりします。このサイトでは止めて、どこではみ出したかを示します。',
+            '- `a = [10, 20, 30]` は 3 つの値を並べたリストです。図では、名前 a からリストの箱へ矢印が伸びます。',
+            '- `a[0]` が最初、`a[2]` が最後です。長さ n のリストで使える番号は 0 から n-1 です。',
+            '- `a[-1]` は最後、`a[-2]` は最後から 2 番目です。',
+            '- `a.append(40)` は最後に追加します。`len(a)` は長さです。',
+            '- `for x in a:` で、要素を前から順に取り出せます。',
           ),
-          example: C(r`
-            int a[5] = {3, 1, 4, 1, 5};
-            int max = a[0];
-            // 1. 残りの要素と 1 つずつ比べる
-            for (int i = 1; i < 5; i++) {
-                if (a[i] > max) max = a[i];
-            }
-            printf("%d\n", max);
+          example: src(r`
+            a = [10, 20, 30]
+            # 1. 番号で読み書きする
+            a[1] = 25
+            # 2. 最後に追加する
+            a.append(40)
+            # 3. 前から順に取り出す
+            total = 0
+            for x in a:
+                total += x
+            print(len(a), a[-1], total)
           `),
         },
         {
           kind: 'problem', problem: {
-            id: 'array-p1', type: 'predict', kcs: ['array'],
+            id: 'list-p1', type: 'predict', kcs: ['list', 'slice'],
             prompt: '出力を予測してください。',
-            params: { a: [1, 9], b: [1, 9], c: [1, 9], d: [1, 9] },
-            code: C(r`
-              int a[4] = {$a, $b, $c, $d};
-              a[1] = a[0] + a[3];
-              a[a[0] % 4] = 0;
-              for (int i = 0; i < 4; i++) printf("%d ", a[i]);
-              printf("\n");
+            params: { a: [1, 9], b: [1, 9] },
+            code: src(r`
+              nums = [$a, $b, 7]
+              nums.append(nums[0] + nums[-1])
+              nums[1] = nums[1] * 2
+              print(nums)
+              print(len(nums), nums[-2])
             `),
-            explain: '`a[a[0] % 4]` は、まず `a[0] % 4` を計算して、その番号の箱を指します。添字には式も書けます。',
           },
         },
         {
           kind: 'problem', problem: {
-            id: 'array-c1', type: 'choice', kcs: ['bounds', 'offbyone'],
-            prompt: 'このプログラムの問題はどれですか。',
-            code: C(r`
-              int a[5] = {1, 2, 3, 4, 5};
-              int sum = 0;
-              for (int i = 0; i <= 5; i++) sum += a[i];
-              printf("%d\n", sum);
-            `),
+            id: 'list-c1', type: 'choice', kcs: ['slice'],
+            prompt: '`a = [5, 6, 7]` のとき、`print(a[3])` はどうなりますか。',
             choices: [
-              { text: '問題はなく、15 と表示される', why: 'i が 5 のとき `a[5]` を読みます。a の箱は `a[4]` までです。' },
-              { text: '範囲外の `a[5]` を読んでいる。本物の C では何が起きるか決まっていない', why: 'そのとおりです。本物の C ではたまたま動くこともあり、見つけにくい誤りです。`i < 5` に直します。' },
-              { text: 'コンパイルエラーになる', why: '文法は正しいので、コンパイルは通ります。誤りは実行したときに起きます。' },
+              { text: '7 が表示される', why: '7 は a[2] です。番号は 0 から始まります。' },
+              { text: 'IndexError になる', why: 'そのとおりです。長さ 3 のリストで使える番号は 0, 1, 2 です。' },
+              { text: 'None が表示される', why: 'Python は、範囲外の番号を黙って許しません。エラーで止めて知らせます。' },
             ],
             answer: 1,
           },
         },
         {
           kind: 'problem', problem: {
-            id: 'array-t1', type: 'trace', kcs: ['array'],
-            prompt: '`int t = a[i];` の行に来るたびに、i と j の値を書いてください。終わったとき a はどうなっているかも考えてください。',
-            code: C(r`
-              int a[6] = {1, 2, 3, 4, 5, 6};
-              int i = 0, j = 5;
-              while (i < j) {
-                  int t = a[i];
-                  a[i] = a[j];
-                  a[j] = t;
-                  i++;
-                  j--;
-              }
-              printf("%d %d\n", a[0], a[5]);
+            id: 'list-w1', type: 'write', kcs: ['list', 'for'],
+            prompt: 'リスト scores の中で、60 以上の点数だけを集めたリストを作り、表示してください。',
+            params: { a: [40, 99], b: [40, 99], c: [40, 99] },
+            starter: src(r`
+              scores = [$a, $b, $c, 55, 80]
+              passed = []
+              # ここに書く
+              print(passed)
             `),
-            line: 7, vars: ['i', 'j'],
-          },
-        },
-        {
-          kind: 'problem', problem: {
-            id: 'array-w1', type: 'write', kcs: ['array', 'for'],
-            prompt: '個数 n(1〜100)と n 個の整数を読み、平均より大きい数がいくつあるかを表示してください。',
-            starter: C(r`
-              int n;
-              int a[100];
-              scanf("%d", &n);
+            solution: src(r`
+              scores = [$a, $b, $c, 55, 80]
+              passed = []
+              for s in scores:
+                  if s >= 60:
+                      passed.append(s)
+              print(passed)
             `),
-            solution: C(r`
-              int n;
-              int a[100];
-              scanf("%d", &n);
-              int sum = 0;
-              for (int i = 0; i < n; i++) {
-                  scanf("%d", &a[i]);
-                  sum += a[i];
-              }
-              int count = 0;
-              for (int i = 0; i < n; i++) {
-                  if (a[i] * n > sum) count++;
-              }
-              printf("%d\n", count);
-            `),
-            tests: [{ stdin: '5\n1 2 3 4 5' }, { stdin: '1\n7' }, { stdin: '4\n1 1 1 10' }, { stdin: '3\n2 3 3', hidden: true }],
-            hints: ['平均は最後まで読まないと分かりません。いったん全部を配列に入れてから、もう 1 回見ます。', '平均を小数にしたくなければ、`a[i] > sum / n` の代わりに `a[i] * n > sum` と比べます。'],
+            tests: [{}, { set: { scores: '[61, 59, 100, 0, 60]' } }],
+            hints: ['`for s in scores:` で 1 つずつ取り出し、条件に合うものだけ `passed.append(s)` します。'],
           },
         },
       ],
     },
     {
-      id: 'l2', title: '文字列',
+      id: 'l2', title: 'スライスと文字列',
       steps: [
         {
-          kind: 'read', title: '文字列は \\0 で終わる char の配列',
+          kind: 'read', title: 'スライスは「始まりから、終わりの手前まで」',
           body: L(
-            '- `char s[] = "cat";` は 4 つの箱 `c` `a` `t` `\\0` になります。最後の `\\0`(値 0 の文字)が「ここで終わり」の印です。',
-            '- `printf("%s", s)` や `strlen(s)` は、`\\0` が出るまで読み進めます。`\\0` がないと、配列の外まで読んでしまいます。',
-            '- 文字は小さな整数です。`\'a\'` は 97 で、`s[i] - \'a\'` で「a から何文字目か」が分かります。',
+            '- `a[1:3]` は番号 1 と 2 の要素を取り出した**新しいリスト**です。range と同じく、終わりの番号は含みません。',
+            '- `a[:2]` は最初の 2 つ、`a[2:]` は番号 2 から最後まで、`a[::-1]` は逆順です。',
+            '- 文字列も同じように `s[0]`、`s[1:3]` で読めます。',
+            '- 文字列は**変えられません**。`s[0] = "X"` はエラーです。`s.upper()` や `s.replace("a", "b")` は、元の文字列を変えずに新しい文字列を返します。',
           ),
-          example: C(r`
-            char s[] = "hello";
-            int n = 0;
-            // 1. '\0' が来るまで数える
-            while (s[n] != '\0') {
-                n++;
-            }
-            printf("%d\n", n);
+          example: src(r`
+            s = "python"
+            # 1. スライスは新しい文字列を作る
+            head = s[:2]
+            tail = s[2:]
+            # 2. メソッドも新しい文字列を返す(s は変わらない)
+            big = s.upper()
+            print(head, tail, big, s)
+            # 3. 逆順
+            print(s[::-1])
           `),
         },
         {
           kind: 'problem', problem: {
-            id: 'array-c2', type: 'choice', kcs: ['string', 'bounds'],
-            prompt: 'このプログラムの問題はどれですか。',
-            code: C(r`
-              char s[5];
-              strcpy(s, "hello");
-              printf("%s\n", s);
-            `, ['stdio.h', 'string.h']),
-            choices: [
-              { text: '問題はない', why: '"hello" は 5 文字ですが、終わりの `\\0` を入れると 6 バイト要ります。' },
-              { text: '終わりの `\\0` を入れる場所がなく、配列の外へ書き込む', why: 'そのとおりです。文字列の長さ + 1 の大きさが要ります。`char s[6];` にします。' },
-              { text: '`strcpy` には配列を渡せない', why: '配列は渡せます。問題は大きさです。' },
-            ],
-            answer: 1,
-          },
-        },
-        {
-          kind: 'problem', problem: {
-            id: 'array-p2', type: 'predict', kcs: ['string'],
+            id: 'list-p2', type: 'predict', kcs: ['slice', 'string'],
             prompt: '出力を予測してください。',
-            params: { w: ['cat', 'moss', 'tree', 'code'] },
-            code: C(r`
-              char s[] = "$w";
-              for (int i = 0; s[i] != '\0'; i++) {
-                  s[i] = s[i] - 'a' + 'A';
-              }
-              printf("%s %c\n", s, s[1] + 1);
+            params: { w: ['banana', 'orange', 'melon', 'cherry'] },
+            code: src(r`
+              w = "$w"
+              print(w[1:4])
+              print(w[-2:], len(w))
+              print(w.replace("a", "A"), w)
             `),
-            explain: '小文字と大文字は、文字の番号が一定の差だけ離れています。`s[1] + 1` は、2 文字目(大文字にした後)の次の文字です。',
+            explain: 'replace は新しい文字列を返すだけで、w そのものは変わりません。',
           },
         },
         {
           kind: 'problem', problem: {
-            id: 'array-f1', type: 'fill', kcs: ['string'],
-            prompt: '英単語を 1 つ読み、その中の `a` の数を表示します。',
-            code: C(r`
-              char s[100];
-              scanf("%99s", s);
-              int count = 0;
-              for (int i = 0; ___; i++) {
-                  if (s[i] == ___) count++;
-              }
-              printf("%d\n", count);
+            id: 'list-f1', type: 'fill', kcs: ['string', 'for'],
+            prompt: '入力した文字列の中の母音(a, e, i, o, u)の数を表示します。空欄を埋めてください。',
+            code: src(r`
+              s = input()
+              count = 0
+              for ch in ___:
+                  if ch ___ "aeiou":
+                      count += 1
+              print(count)
             `),
-            answers: [r`s[i] != '\0'`, `'a'`],
-            tests: [{ stdin: 'banana' }, { stdin: 'xyz' }, { stdin: 'a', hidden: true }],
-            explain: '`scanf("%s", s)` には `&` を付けません。配列の名前は、それだけで先頭の場所を表すからです(ポインタの単元で詳しく扱います)。',
-          },
-        },
-        {
-          kind: 'problem', problem: {
-            id: 'array-w2', type: 'write', kcs: ['string', 'array'],
-            prompt: '英単語を 1 つ読み、逆から表示してください(`moss` なら `ssom`)。',
-            starter: C(r`
-              char s[100];
-              scanf("%99s", s);
-            `),
-            solution: C(r`
-              char s[100];
-              scanf("%99s", s);
-              int n = strlen(s);
-              for (int i = n - 1; i >= 0; i--) putchar(s[i]);
-              putchar('\n');
-            `, ['stdio.h', 'string.h']),
-            tests: [{ stdin: 'moss' }, { stdin: 'a' }, { stdin: 'abcdef', hidden: true }],
-            hints: ['まず長さを求めます。`strlen` を使うなら `#include <string.h>` を足します。', '最後の文字は `s[n - 1]` です。`s[n]` は `\\0` です。'],
+            answers: ['s', 'in'],
+            tests: [{ stdin: 'banana' }, { stdin: 'sky' }, { stdin: 'education' }],
           },
         },
       ],
@@ -206,59 +142,55 @@ export const ARRAY: Unit = {
   ],
   check: [
     {
-      id: 'array-k1', type: 'predict', kcs: ['array'],
+      id: 'list-k1', type: 'predict', kcs: ['list', 'slice'],
       prompt: '出力を予測してください。',
-      params: { n: [3, 5] },
-      code: C(r`
-        int a[6];
-        a[0] = 1;
-        for (int i = 1; i < 6; i++) a[i] = a[i - 1] * 2 + i;
-        printf("%d %d\n", a[$n], a[a[1] % 6]);
+      params: { a: [1, 5] },
+      code: src(r`
+        a = [$a, 2, 3, 4, 5]
+        b = a[1:4]
+        b.append(a[-1])
+        print(b, len(a))
       `),
     },
     {
-      id: 'array-k2', type: 'choice', kcs: ['string'],
-      prompt: '`char s[] = "abc";` の大きさ(バイト数)はいくつですか。',
+      id: 'list-k2', type: 'choice', kcs: ['string'],
+      prompt: '`s = "cat"` のあと `s.upper()` だけを実行し、`print(s)` すると何が表示されますか。',
       choices: [
-        { text: '3', why: '見える文字は 3 つですが、終わりの `\\0` も配列に入ります。' },
-        { text: '4', why: 'そのとおりです。`a` `b` `c` `\\0` の 4 バイトです。' },
-        { text: '8', why: 'ポインタの大きさと混ざっています。配列はそのまま並んだ箱の数だけの大きさです。' },
+        { text: 'CAT', why: 'upper() は新しい文字列を返すだけです。受け取らなければ、その結果は捨てられます。' },
+        { text: 'cat', why: 'そのとおりです。文字列は変えられないので、s は "cat" のままです。`s = s.upper()` と書くと CAT になります。' },
+        { text: 'エラーになる', why: 'upper() を呼ぶこと自体は正しい使い方です。' },
       ],
       answer: 1,
     },
     {
-      id: 'array-k3', type: 'fill', kcs: ['array', 'offbyone'],
-      prompt: '5 つの整数を読み、隣どうしの差(後ろ − 前)を 4 つ表示します。',
-      code: C(r`
-        int a[5];
-        for (int i = 0; i < 5; i++) scanf("%d", &a[i]);
-        for (int i = 0; i < ___; i++) {
-            printf("%d ", ___);
-        }
-        printf("\n");
+      id: 'list-k3', type: 'trace', kcs: ['list', 'for'],
+      prompt: '4 行目に来るたびに、その行を実行する前の x と best の値を書いてください。',
+      params: { a: [1, 9], b: [1, 9], c: [1, 9] },
+      code: src(r`
+        nums = [$a, $b, $c]
+        best = nums[0]
+        for x in nums:
+            if x > best:
+                best = x
+        print(best)
       `),
-      answers: ['4', 'a[i + 1] - a[i]'],
-      tests: [{ stdin: '1 3 6 10 15' }, { stdin: '5 4 3 2 1' }, { stdin: '0 0 0 0 9', hidden: true }],
+      line: 4, vars: ['x', 'best'],
     },
     {
-      id: 'array-k4', type: 'write', kcs: ['string'],
-      prompt: '英単語を 1 つ読み、前から読んでも後ろから読んでも同じなら `yes`、違えば `no` と表示してください。',
-      starter: C(r`
-        char s[100];
-        scanf("%99s", s);
-      `, ['stdio.h', 'string.h']),
-      solution: C(r`
-        char s[100];
-        scanf("%99s", s);
-        int n = strlen(s);
-        int ok = 1;
-        for (int i = 0; i < n / 2; i++) {
-            if (s[i] != s[n - 1 - i]) ok = 0;
-        }
-        printf(ok ? "yes\n" : "no\n");
-      `, ['stdio.h', 'string.h']),
-      tests: [{ stdin: 'level' }, { stdin: 'moss' }, { stdin: 'a' }, { stdin: 'abba', hidden: true }, { stdin: 'ab', hidden: true }],
-      hints: ['前から i 番目と、後ろから i 番目(`s[n - 1 - i]`)を比べます。', '半分まで比べれば十分です。'],
+      id: 'list-k4', type: 'write', kcs: ['string', 'list'],
+      prompt: '入力した単語を逆から読んでも同じ(回文)なら `回文`、違えば `回文ではない` と表示してください。',
+      starter: src(r`
+        w = input()
+      `),
+      solution: src(r`
+        w = input()
+        if w == w[::-1]:
+            print("回文")
+        else:
+            print("回文ではない")
+      `),
+      tests: [{ stdin: 'level' }, { stdin: 'python' }, { stdin: 'a' }, { stdin: 'abca', hidden: true }],
+      hints: ['`w[::-1]` で逆順の文字列が作れます。'],
     },
   ],
 };
@@ -266,244 +198,141 @@ export const ARRAY: Unit = {
 export const FUNC: Unit = {
   id: 'func',
   title: '関数',
-  summary: '処理に名前を付けて分けます。引数がコピーされることと、再帰で呼び出しが積み重なる様子を図で見ます。',
-  kcs: ['func', 'byvalue', 'return'],
+  summary: '処理に名前を付けてまとめます。return と print の違い、関数の中の名前がその関数だけのものになることを確かめます。',
+  kcs: ['func', 'return', 'scope'],
   lessons: [
     {
-      id: 'l1', title: '関数を作る',
+      id: 'l1', title: '関数を作って呼ぶ',
       steps: [
         {
-          kind: 'read', title: '受け取って、返す',
+          kind: 'read', title: 'return は呼び出し元へ値を返す',
           body: L(
-            '- `int square(int n) { return n * n; }` は「int を 1 つ受け取り、int を返す関数」です。',
-            '- 呼ぶと、その関数の箱(引数とローカル変数)が新しく作られ、`return` で値を返して消えます。メモリ図で、呼び出しのたびに枠が積まれて消えるのを見てください。',
-            '- 値を返さない関数は `void` と書きます。',
+            '- `def 名前(引数):` で関数を作ります。作っただけでは中身は動きません。呼んだときに動きます。',
+            '- `return 値` は、その値を呼び出し元へ返して、関数をすぐ終えます。',
+            '- `print` は画面に出すだけで、値は返しません。return のない関数は `None` を返します。',
+            '- 図では、関数を呼ぶとその関数用の枠(フレーム)が積まれ、戻ると消えます。',
+            '- 中身をまだ書いていない関数には `pass`(何もしない)と書いておきます。中身を書いたら消してかまいません。',
           ),
           example: src(r`
-            #include <stdio.h>
+            # 1. 関数を作る(ここではまだ動かない)
+            def area(w, h):
+                return w * h
 
-            // 1. 受け取った n の 2 乗を返す
-            int square(int n) {
-                return n * n;
-            }
-
-            int main(void) {
-                // 2. 呼ぶと、戻り値が式の値になる
-                int a = square(3) + square(4);
-                printf("%d\n", a);
-                return 0;
-            }
+            # 2. 呼ぶと、w と h を持つ枠が積まれる
+            a = area(3, 4)
+            # 3. 戻り値をさらに計算に使える
+            b = area(a, 2) + 1
+            print(a, b)
           `),
         },
         {
           kind: 'problem', problem: {
-            id: 'func-p1', type: 'predict', kcs: ['func'],
+            id: 'func-p1', type: 'predict', kcs: ['func', 'return'],
             prompt: '出力を予測してください。',
-            params: { a: [1, 5] },
+            params: { a: [2, 6] },
             code: src(r`
-              #include <stdio.h>
+              def twice(x):
+                  print("呼ばれた", x)
+                  return x * 2
 
-              int f(int x) {
-                  return x * 2 + 1;
-              }
-
-              int main(void) {
-                  printf("%d %d\n", f($a), f(f($a)));
-                  return 0;
-              }
+              y = twice($a)
+              z = twice(y) + 1
+              print(y, z)
             `),
-            explain: '`f(f($a))` は内側から計算します。内側の戻り値が、外側の引数になります。',
           },
         },
         {
           kind: 'problem', problem: {
-            id: 'func-s1', type: 'parsons', kcs: ['func', 'for'],
-            prompt: 'n の階乗(1 × 2 × … × n、0 の階乗は 1)を返す関数 fact を作ります。行を並べてください。使わない行が 2 つあります。',
-            before: '#include <stdio.h>\n\nint fact(int n) {',
-            after: src(r`
-              }
-
-              int main(void) {
-                  int n;
-                  scanf("%d", &n);
-                  printf("%d\n", fact(n));
-                  return 0;
-              }
-            `),
-            lines: ['    int r = 1;', '    for (int i = 2; i <= n; i++) {', '        r *= i;', '    }', '    return r;'],
-            distractors: ['    int r = 0;', '    return i;'],
-            tests: [{ stdin: '5' }, { stdin: '1' }, { stdin: '0' }, { stdin: '10', hidden: true }],
+            id: 'func-c1', type: 'choice', kcs: ['return'],
+            prompt: '次の関数で `r = add(2, 3)` としたとき、r の値はどれですか。\n\n`def add(a, b):` / `    print(a + b)`',
+            choices: [
+              { text: '5', why: 'print は画面に 5 を出すだけで、値を返しません。' },
+              { text: 'None', why: 'そのとおりです。return がない関数は None を返します。' },
+              { text: 'エラーになる', why: 'return がなくても関数は正しく動きます。' },
+            ],
+            answer: 1,
           },
         },
         {
           kind: 'problem', problem: {
-            id: 'func-w1', type: 'write', kcs: ['func'],
-            prompt: '3 つの整数のうちいちばん大きい数を返す関数 `max3` を書いてください。main はそのまま使います。',
+            id: 'func-w1', type: 'write', kcs: ['func', 'return'],
+            prompt: 'リストを受け取り、その平均を返す関数 `average(nums)` を作ってください。表示は下の行が行います。',
             starter: src(r`
-              #include <stdio.h>
+              def average(nums):
+                  pass  # ここに書く
 
-              int max3(int a, int b, int c) {
-                  // ここに書く
-              }
-
-              int main(void) {
-                  int a, b, c;
-                  scanf("%d %d %d", &a, &b, &c);
-                  printf("%d\n", max3(a, b, c));
-                  return 0;
-              }
+              print(average([2, 4, 9]))
+              print(average([5]))
             `),
             solution: src(r`
-              #include <stdio.h>
+              def average(nums):
+                  return sum(nums) / len(nums)
 
-              int max3(int a, int b, int c) {
-                  int m = a;
-                  if (b > m) m = b;
-                  if (c > m) m = c;
-                  return m;
-              }
-
-              int main(void) {
-                  int a, b, c;
-                  scanf("%d %d %d", &a, &b, &c);
-                  printf("%d\n", max3(a, b, c));
-                  return 0;
-              }
+              print(average([2, 4, 9]))
+              print(average([5]))
             `),
-            tests: [{ stdin: '1 2 3' }, { stdin: '3 1 2' }, { stdin: '2 3 1' }, { stdin: '-1 -1 -1', hidden: true }],
-            hints: ['条件分岐の単元の「いちばん大きい数」と同じ考え方です。最後に `return` で返します。'],
+            tests: [{}, { append: 'print(average([1, 2]))' }],
+            hints: ['`sum(nums)` で合計、`len(nums)` で個数が求まります。', '関数の中では print せず、`return` で返します。'],
           },
         },
       ],
     },
     {
-      id: 'l2', title: '値渡しと再帰',
+      id: 'l2', title: '関数の中の名前',
       steps: [
         {
-          kind: 'read', title: '引数はコピーされる',
+          kind: 'read', title: '関数の中で代入した名前は、その関数だけのもの',
           body: L(
-            '- 関数に渡されるのは値のコピーです。関数の中で引数を書き換えても、呼び出し元の変数は変わりません。',
-            '- 下の swap は、入れ替えたつもりで何も入れ替えていません。メモリ図で、main の x, y と swap の a, b が別の箱であることを確かめてください。',
-            '- 呼び出し元の変数を変えるには、ポインタを使います(次の単元)。',
+            '- 関数の中で `x = 1` と代入すると、その x は関数の枠の中だけの名前(ローカル)になります。外の x とは別物です。',
+            '- 関数が終わると、その枠ごと名前は消えます。',
+            '- 外の名前を読むだけならできますが、外の値を変えたいときは、return で返して呼び出し元で代入するのが基本です。',
           ),
           example: src(r`
-            #include <stdio.h>
+            x = 10
 
-            // 1. a と b は、x と y のコピー
-            void swap(int a, int b) {
-                int t = a;
-                a = b;
-                b = t;
-            }
+            def f():
+                # 1. この x は f の枠の中だけの名前
+                x = 99
+                return x + 1
 
-            int main(void) {
-                int x = 1, y = 2;
-                swap(x, y);
-                // 2. x と y はそのまま
-                printf("%d %d\n", x, y);
-                return 0;
-            }
+            # 2. 図で、外の x と f の中の x が別の枠にあるのを見る
+            y = f()
+            # 3. 外の x は 10 のまま
+            print(x, y)
           `),
         },
         {
           kind: 'problem', problem: {
-            id: 'func-c1', type: 'choice', kcs: ['byvalue'],
-            prompt: 'このプログラムは何を表示しますか。',
+            id: 'func-p2', type: 'predict', kcs: ['scope'],
+            prompt: '出力を予測してください。',
+            params: { n: [1, 9] },
             code: src(r`
-              #include <stdio.h>
+              n = $n
 
-              void add_one(int n) {
-                  n = n + 1;
-              }
+              def bump(n):
+                  n = n + 100
+                  return n
 
-              int main(void) {
-                  int x = 5;
-                  add_one(x);
-                  printf("%d\n", x);
-                  return 0;
-              }
+              m = bump(n)
+              print(n, m)
             `),
-            choices: [
-              { text: '6', why: 'add_one の n は x のコピーです。n を増やしても x は変わりません。' },
-              { text: '5', why: 'そのとおりです。変えたいなら、増やした値を `return` で返して `x = add_one(x);` とするか、ポインタを渡します。' },
-              { text: 'コンパイルエラーになる', why: '正しい C です。値を書き換えても、呼び出し元に伝わらないだけです。' },
-            ],
-            answer: 1,
+            explain: '引数の n は、関数の枠の中の名前です。中で n に代入し直しても、外の n は変わりません。',
           },
         },
         {
           kind: 'problem', problem: {
-            id: 'func-p2', type: 'predict', kcs: ['return', 'func'],
-            prompt: '出力を予測してください。「1 行ずつ動きを見る」で、呼び出しの枠が積み重なる様子も確かめてください。',
-            params: { n: [3, 7] },
+            id: 'func-t1', type: 'trace', kcs: ['func', 'return'],
+            prompt: '2 行目に来るたびに、その行を実行する前の n の値を書いてください(再帰で同じ関数が何度も呼ばれます)。',
+            params: { n: [3, 5] },
             code: src(r`
-              #include <stdio.h>
+              def fact(n):
+                  if n <= 1:
+                      return 1
+                  return n * fact(n - 1)
 
-              int sum(int n) {
-                  if (n == 0) return 0;
-                  return n + sum(n - 1);
-              }
-
-              int main(void) {
-                  printf("%d\n", sum($n));
-                  return 0;
-              }
+              print(fact($n))
             `),
-          },
-        },
-        {
-          kind: 'problem', problem: {
-            id: 'func-c2', type: 'choice', kcs: ['return'],
-            prompt: '`sign(0)` を呼ぶと、何が返りますか。',
-            code: src(r`
-              int sign(int x) {
-                  if (x > 0) return 1;
-                  if (x < 0) return -1;
-              }
-            `),
-            choices: [
-              { text: '0', why: 'どの return にも当たらないまま関数の終わりに着きます。0 が返るとは決まっていません。' },
-              { text: '何が返るか決まっていない', why: 'そのとおりです。本物の C では、たまたま残っていた値が返ります。全部の道で return するように、最後に `return 0;` を書きます。このサイトでは警告を出します。' },
-              { text: '-1', why: '`0 < 0` は偽なので、2 つ目の return も実行されません。' },
-            ],
-            answer: 1,
-          },
-        },
-        {
-          kind: 'problem', problem: {
-            id: 'func-w2', type: 'write', kcs: ['return'],
-            prompt: '`b` の `e` 乗を返す関数 `power` を、自分自身を呼ぶ形(再帰)で書いてください。e は 0 以上です。',
-            starter: src(r`
-              #include <stdio.h>
-
-              int power(int b, int e) {
-                  // ここに書く
-              }
-
-              int main(void) {
-                  int b, e;
-                  scanf("%d %d", &b, &e);
-                  printf("%d\n", power(b, e));
-                  return 0;
-              }
-            `),
-            solution: src(r`
-              #include <stdio.h>
-
-              int power(int b, int e) {
-                  if (e == 0) return 1;
-                  return b * power(b, e - 1);
-              }
-
-              int main(void) {
-                  int b, e;
-                  scanf("%d %d", &b, &e);
-                  printf("%d\n", power(b, e));
-                  return 0;
-              }
-            `),
-            tests: [{ stdin: '2 10' }, { stdin: '5 0' }, { stdin: '3 4' }, { stdin: '-2 3', hidden: true }],
-            hints: ['終わりの場合を先に書きます。e が 0 なら 1 です。', 'b の e 乗は、b × (b の e−1 乗) です。'],
+            line: 2, vars: ['n'],
           },
         },
       ],
@@ -511,406 +340,356 @@ export const FUNC: Unit = {
   ],
   check: [
     {
-      id: 'func-k1', type: 'trace', kcs: ['return', 'func'],
-      prompt: '`if (b == 0)` の行に来るたびに、そのとき実行中の gcd の a と b を書いてください。',
-      params: { a: [20, 60], b: [6, 18] },
-      code: src(r`
-        #include <stdio.h>
-
-        int gcd(int a, int b) {
-            if (b == 0) return a;
-            return gcd(b, a % b);
-        }
-
-        int main(void) {
-            printf("%d\n", gcd($a, $b));
-            return 0;
-        }
-      `),
-      line: 4, vars: ['a', 'b'],
-    },
-    {
-      id: 'func-k2', type: 'predict', kcs: ['byvalue', 'func'],
+      id: 'func-k1', type: 'predict', kcs: ['func', 'return'],
       prompt: '出力を予測してください。',
-      params: { x: [2, 9] },
+      params: { a: [2, 9] },
       code: src(r`
-        #include <stdio.h>
+        def sq(x):
+            return x * x
 
-        int twice(int x) {
-            x = x * 2;
-            return x;
-        }
+        def show(x):
+            print(x * x)
 
-        int main(void) {
-            int x = $x;
-            int y = twice(x);
-            printf("%d %d\n", x, y);
-            return 0;
-        }
+        a = sq($a)
+        b = show(3)
+        print(a, b)
       `),
     },
     {
-      id: 'func-k3', type: 'write', kcs: ['func', 'while'],
-      prompt: '1 以上の整数が素数なら 1、そうでなければ 0 を返す関数 `is_prime` を書いてください。',
-      starter: src(r`
-        #include <stdio.h>
-
-        int is_prime(int n) {
-            // ここに書く
-        }
-
-        int main(void) {
-            int n;
-            scanf("%d", &n);
-            printf("%d\n", is_prime(n));
-            return 0;
-        }
-      `),
-      solution: src(r`
-        #include <stdio.h>
-
-        int is_prime(int n) {
-            if (n < 2) return 0;
-            for (int d = 2; d * d <= n; d++) {
-                if (n % d == 0) return 0;
-            }
-            return 1;
-        }
-
-        int main(void) {
-            int n;
-            scanf("%d", &n);
-            printf("%d\n", is_prime(n));
-            return 0;
-        }
-      `),
-      tests: [{ stdin: '2' }, { stdin: '1' }, { stdin: '9' }, { stdin: '13' }, { stdin: '97', hidden: true }, { stdin: '91', hidden: true }],
-      hints: ['2 から順に割ってみて、割り切れたらすぐ 0 を返します。', '1 は素数ではありません。', '`d * d <= n` まで調べれば十分です。'],
-    },
-  ],
-};
-
-export const PTR: Unit = {
-  id: 'ptr',
-  title: 'ポインタ',
-  summary: '「場所」を値として扱います。メモリ図の矢印で、どこを指しているかを毎行確かめます。',
-  kcs: ['addr', 'deref', 'ptrarith', 'ptrparam', 'malloc'],
-  lessons: [
-    {
-      id: 'l1', title: 'アドレスとポインタ',
-      steps: [
-        {
-          kind: 'read', title: 'ポインタは「場所」を入れる箱',
-          body: L(
-            '- 変数にはメモリ上の場所(アドレス)があります。`&x` は x の場所です。',
-            '- `int *p = &x;` は「int の場所を入れる箱 p を作り、x の場所を入れる」です。メモリ図では p から x へ矢印が出ます。',
-            '- `*p` は「p が指している箱」です。`*p = 20;` は x に 20 を入れるのと同じです。',
-            '- `scanf("%d", &a)` に `&` が要ったのは、scanf に a の場所を教えて、そこへ書き込んでもらうためです。',
-          ),
-          example: C(r`
-            int x = 10;
-            // 1. p に x の場所を入れる(p は x を指す)
-            int *p = &x;
-            // 2. p の指す先(つまり x)を書き換える
-            *p = 20;
-            printf("%d\n", x);
-          `),
-        },
-        {
-          kind: 'problem', problem: {
-            id: 'ptr-p1', type: 'predict', kcs: ['deref', 'addr'],
-            prompt: '出力を予測してください。',
-            params: { a: [1, 9], b: [1, 9] },
-            code: C(r`
-              int a = $a, b = $b;
-              int *p = &a;
-              *p = *p + b;
-              p = &b;
-              *p = *p * 2;
-              printf("%d %d\n", a, b);
-            `),
-            explain: '`p = &b;` は p の矢印を付け替えるだけで、a も b も変えません。その後の `*p` は b のことです。',
-          },
-        },
-        {
-          kind: 'problem', problem: {
-            id: 'ptr-c1', type: 'choice', kcs: ['deref'],
-            prompt: 'このプログラムの問題はどれですか。',
-            code: C(r`
-              int *p;
-              *p = 5;
-              printf("%d\n", *p);
-            `),
-            choices: [
-              { text: '問題はなく、5 と表示される', why: 'p にはまだどの場所も入っていません。どこかも分からない場所へ 5 を書き込もうとしています。' },
-              { text: 'p がどこも指していないのに、その先へ書き込んでいる', why: 'そのとおりです。ポインタは、指す先(`&x` や malloc の結果)を入れてから使います。' },
-              { text: '`*p = 5` は p に 5 を入れる', why: '`*p` は p そのものではなく、p の指す先です。p に入れるなら `p = ...` です。' },
-            ],
-            answer: 1,
-          },
-        },
-        {
-          kind: 'problem', problem: {
-            id: 'ptr-f1', type: 'fill', kcs: ['ptrparam', 'deref'],
-            prompt: '2 つの変数の中身を入れ替える関数 swap を完成させてください。',
-            code: src(r`
-              #include <stdio.h>
-
-              void swap(int *a, int *b) {
-                  int t = ___;
-                  *a = *b;
-                  ___ = t;
-              }
-
-              int main(void) {
-                  int x, y;
-                  scanf("%d %d", &x, &y);
-                  swap(___, ___);
-                  printf("%d %d\n", x, y);
-                  return 0;
-              }
-            `),
-            answers: ['*a', '*b', '&x', '&y'],
-            tests: [{ stdin: '1 2' }, { stdin: '7 -3' }, { stdin: '5 5', hidden: true }],
-            explain: '関数の単元の swap は、コピーを入れ替えていました。場所を渡せば、関数の中から呼び出し元の箱を書き換えられます。',
-          },
-        },
-        {
-          kind: 'problem', problem: {
-            id: 'ptr-w1', type: 'write', kcs: ['ptrparam'],
-            prompt: '配列の最小値と最大値を、ポインタ引数 mn と mx を通して返す関数 `min_max` を書いてください。',
-            starter: src(r`
-              #include <stdio.h>
-
-              void min_max(int a[], int n, int *mn, int *mx) {
-                  // ここに書く
-              }
-
-              int main(void) {
-                  int n, a[100];
-                  scanf("%d", &n);
-                  for (int i = 0; i < n; i++) scanf("%d", &a[i]);
-                  int lo, hi;
-                  min_max(a, n, &lo, &hi);
-                  printf("%d %d\n", lo, hi);
-                  return 0;
-              }
-            `),
-            solution: src(r`
-              #include <stdio.h>
-
-              void min_max(int a[], int n, int *mn, int *mx) {
-                  *mn = a[0];
-                  *mx = a[0];
-                  for (int i = 1; i < n; i++) {
-                      if (a[i] < *mn) *mn = a[i];
-                      if (a[i] > *mx) *mx = a[i];
-                  }
-              }
-
-              int main(void) {
-                  int n, a[100];
-                  scanf("%d", &n);
-                  for (int i = 0; i < n; i++) scanf("%d", &a[i]);
-                  int lo, hi;
-                  min_max(a, n, &lo, &hi);
-                  printf("%d %d\n", lo, hi);
-                  return 0;
-              }
-            `),
-            tests: [{ stdin: '5\n3 1 4 1 5' }, { stdin: '1\n7' }, { stdin: '3\n-1 -5 -2', hidden: true }],
-            hints: ['`*mn = a[0];` のように、指す先に書き込みます。`mn = ...` だとポインタの矢印を変えるだけです。', '最初の要素で初めの値を決めてから、残りと比べます。'],
-          },
-        },
-      ],
-    },
-    {
-      id: 'l2', title: 'ポインタと配列、malloc',
-      steps: [
-        {
-          kind: 'read', title: '配列の名前は先頭の場所',
-          body: L(
-            '- 配列の名前 a は、多くの場面で先頭 `&a[0]` の場所として扱われます。',
-            '- `p + 1` は「1 バイト先」ではなく「1 要素先」です。`*(p + i)` と `p[i]` は同じ意味です。',
-            '- `malloc(大きさ)` は、実行中に新しい箱を借ります。使い終わったら `free` で返します。返し忘れると「メモリリーク」、返した後に使うと「解放後の使用」です。どちらもこのサイトは知らせます。',
-          ),
-          example: C(r`
-            int a[4] = {10, 20, 30, 40};
-            // 1. p は a[0] を指す
-            int *p = a;
-            // 2. p + 2 は 2 つ先の要素 a[2] を指す
-            printf("%d\n", *(p + 2));
-            // 3. p を 1 要素先へ進める
-            p++;
-            printf("%d\n", *p);
-          `),
-        },
-        {
-          kind: 'problem', problem: {
-            id: 'ptr-p2', type: 'predict', kcs: ['ptrarith'],
-            prompt: '出力を予測してください。',
-            params: { a: [1, 9], b: [1, 9], c: [1, 9], d: [1, 9], e: [1, 9] },
-            code: C(r`
-              int a[5] = {$a, $b, $c, $d, $e};
-              int *p = a + 1;
-              int *q = &a[4];
-              printf("%d %d %d\n", *p, *(q - 1), (int)(q - p));
-            `),
-            explain: 'ポインタどうしの引き算は、間にある要素の数です。バイト数ではありません。',
-          },
-        },
-        {
-          kind: 'problem', problem: {
-            id: 'ptr-c2', type: 'choice', kcs: ['malloc'],
-            prompt: 'このプログラムの問題はどれですか。',
-            code: C(r`
-              int *p = malloc(sizeof(int) * 3);
-              p[0] = 1;
-              free(p);
-              printf("%d\n", p[0]);
-            `, ['stdio.h', 'stdlib.h']),
-            choices: [
-              { text: '問題はなく、1 と表示される', why: '本物の C ではたまたま 1 が出ることもありますが、返した後の場所を読んでいます。' },
-              { text: '返した(free した)メモリを使っている', why: 'そのとおりです。free の後、その場所はほかの用途に使われるかもしれません。使い終わってから free します。' },
-              { text: '`sizeof(int) * 3` は 3 バイトしか借りない', why: '`sizeof(int)` は int 1 つの大きさ(多くの環境で 4)なので、12 バイト借ります。' },
-            ],
-            answer: 1,
-          },
-        },
-        {
-          kind: 'problem', problem: {
-            id: 'ptr-s1', type: 'parsons', kcs: ['ptrarith', 'string'],
-            prompt: 'ポインタを進めながら文字列の長さを数える関数を作ります。行を並べてください。使わない行が 1 つあります。',
-            before: '#include <stdio.h>\n\nint my_strlen(char *s) {',
-            after: src(r`
-              }
-
-              int main(void) {
-                  char w[100];
-                  scanf("%99s", w);
-                  printf("%d\n", my_strlen(w));
-                  return 0;
-              }
-            `),
-            lines: ['    char *p = s;', r`    while (*p != '\0') {`, '        p++;', '    }', '    return p - s;'],
-            distractors: ['    return *p - *s;'],
-            tests: [{ stdin: 'hello' }, { stdin: 'a' }, { stdin: 'abcdefghij', hidden: true }],
-          },
-        },
-        {
-          kind: 'problem', problem: {
-            id: 'ptr-w2', type: 'write', kcs: ['malloc', 'ptrarith'],
-            prompt: '個数 n と n 個の整数を読み、malloc で借りた配列に入れて、逆の順に表示してください。最後に free で返します。',
-            starter: C(r`
-              int n;
-              scanf("%d", &n);
-              // ここに書く
-            `, ['stdio.h', 'stdlib.h']),
-            solution: C(r`
-              int n;
-              scanf("%d", &n);
-              int *a = malloc(sizeof(int) * n);
-              for (int i = 0; i < n; i++) scanf("%d", &a[i]);
-              for (int i = n - 1; i >= 0; i--) printf("%d ", a[i]);
-              printf("\n");
-              free(a);
-            `, ['stdio.h', 'stdlib.h']),
-            tests: [{ stdin: '3\n1 2 3' }, { stdin: '1\n9' }, { stdin: '5\n5 4 3 2 1', hidden: true }],
-            noLeak: true,
-            hints: ['`int *a = malloc(sizeof(int) * n);` で n 個分を借ります。借りた後は `a[i]` で普通の配列のように使えます。', '最後に `free(a);` を忘れずに書きます。'],
-          },
-        },
-      ],
-    },
-  ],
-  check: [
-    {
-      id: 'ptr-k1', type: 'predict', kcs: ['deref', 'ptrarith'],
-      prompt: '出力を予測してください。',
-      params: { a: [1, 9], b: [1, 9], c: [1, 9] },
-      code: C(r`
-        int a[3] = {$a, $b, $c};
-        int *p = a;
-        *p = *(p + 2);
-        p++;
-        *p += 10;
-        printf("%d %d %d\n", a[0], a[1], a[2]);
-      `),
-    },
-    {
-      id: 'ptr-k2', type: 'choice', kcs: ['ptrparam', 'byvalue'],
-      prompt: '関数の中から、呼び出し元の int 変数 x を 0 にしたいとき、正しい組み合わせはどれですか。',
+      id: 'func-k2', type: 'choice', kcs: ['scope'],
+      prompt: '関数の中で `total = 0` と書き、関数を呼んだあと、外で `print(total)` しました。外で total を一度も作っていないとき、どうなりますか。',
       choices: [
-        { text: '`void zero(int n) { n = 0; }` と `zero(x);`', why: 'n は x のコピーなので、x は変わりません。' },
-        { text: '`void zero(int *n) { *n = 0; }` と `zero(&x);`', why: 'そのとおりです。x の場所を渡し、指す先に 0 を書き込みます。' },
-        { text: '`void zero(int *n) { n = 0; }` と `zero(&x);`', why: '`n = 0` はポインタ n を NULL にするだけで、x には触れません。' },
+        { text: '0 が表示される', why: '関数の中の total は、関数が終わると消えます。外からは見えません。' },
+        { text: 'NameError になる', why: 'そのとおりです。外には total という名前がないので、まだ作っていない名前を使ったことになります。' },
+        { text: 'None が表示される', why: 'ない名前を読むと、None ではなくエラーになります。' },
       ],
       answer: 1,
     },
     {
-      id: 'ptr-k3', type: 'fill', kcs: ['malloc', 'string'],
-      prompt: '文字列を複製する関数 my_strdup を完成させてください。',
+      id: 'func-k3', type: 'fill', kcs: ['func', 'return'],
+      prompt: '2 つの数のうち大きい方を返す関数を完成させてください。',
       code: src(r`
-        #include <stdio.h>
-        #include <stdlib.h>
-        #include <string.h>
+        def bigger(a, b):
+            if a > b:
+                ___ a
+            ___ b
 
-        char *my_strdup(char *s) {
-            char *d = malloc(___);
-            strcpy(d, s);
-            return d;
-        }
-
-        int main(void) {
-            char w[100];
-            scanf("%99s", w);
-            char *c = my_strdup(w);
-            printf("%s\n", c);
-            ___;
-            return 0;
-        }
+        print(bigger(3, 8), bigger(9, 2), bigger(4, 4))
       `),
-      answers: ['strlen(s) + 1', 'free(c)'],
-      tests: [{ stdin: 'hello' }, { stdin: 'a' }, { stdin: 'pointer', hidden: true }],
+      answers: ['return', 'return'],
+      tests: [{}],
     },
     {
-      id: 'ptr-k4', type: 'write', kcs: ['ptrparam', 'ptrarith'],
-      prompt: '配列の要素を、ポインタを進めながらすべて 2 倍にする関数 `double_all` を書いてください。添字 `[]` を使わずに書いてみてください。',
+      id: 'func-k4', type: 'write', kcs: ['func', 'return', 'string'],
+      prompt: '文字列 s と文字 ch を受け取り、s の中に ch が何回出てくるかを返す関数 `count_char(s, ch)` を作ってください。',
       starter: src(r`
-        #include <stdio.h>
+        def count_char(s, ch):
+            pass  # ここに書く
 
-        void double_all(int *p, int n) {
-            // ここに書く
-        }
-
-        int main(void) {
-            int a[5] = {1, 2, 3, 4, 5};
-            double_all(a, 5);
-            for (int i = 0; i < 5; i++) printf("%d ", a[i]);
-            printf("\n");
-            return 0;
-        }
+        print(count_char("banana", "a"))
+        print(count_char("python", "z"))
       `),
       solution: src(r`
-        #include <stdio.h>
+        def count_char(s, ch):
+            n = 0
+            for c in s:
+                if c == ch:
+                    n += 1
+            return n
 
-        void double_all(int *p, int n) {
-            for (int i = 0; i < n; i++) {
-                *p = *p * 2;
-                p++;
-            }
-        }
-
-        int main(void) {
-            int a[5] = {1, 2, 3, 4, 5};
-            double_all(a, 5);
-            for (int i = 0; i < 5; i++) printf("%d ", a[i]);
-            printf("\n");
-            return 0;
-        }
+        print(count_char("banana", "a"))
+        print(count_char("python", "z"))
       `),
-      tests: [{}],
-      hints: ['`*p` を 2 倍にしてから `p++` で次の要素へ進めます。これを n 回くり返します。'],
+      tests: [{}, { append: 'print(count_char("mississippi", "s"))' }],
+      hints: ['数える名前を 0 から始め、1 文字ずつ比べます。最後に return します。'],
+    },
+  ],
+};
+
+export const ALIAS: Unit = {
+  id: 'alias',
+  title: '名前とオブジェクト',
+  summary: 'Python の名前は、オブジェクトを指す矢印です。b = a でコピーされないこと、関数がリストを変えると呼び出し元も変わることを、図で確かめます。',
+  kcs: ['alias', 'mutable', 'argshare', 'defaultarg', 'copy'],
+  lessons: [
+    {
+      id: 'l1', title: 'b = a はコピーしない',
+      steps: [
+        {
+          kind: 'read', title: '代入は矢印を付け替えるだけ',
+          body: L(
+            '- `b = a` は、b に「a が指しているのと同じオブジェクト」を指させます。中身はコピーされません。',
+            '- だから `b.append(4)` でリストを変えると、a から見ても変わっています。同じ 1 つのリストだからです。',
+            '- 一方、`b = b + [4]` や `b = [9]` のような代入は、b の矢印を**新しいオブジェクトへ付け替える**だけで、a は元のままです。',
+            '- `a is b` は「同じオブジェクトを指しているか」、`a == b` は「中身が等しいか」を調べます。',
+            '- 別のリストがほしいときは `a.copy()` や `a[:]` でコピーします。',
+          ),
+          example: src(r`
+            a = [1, 2, 3]
+            # 1. b は a と同じリストを指す(矢印が 2 本)
+            b = a
+            # 2. リストを変えると、a から見ても変わる
+            b.append(4)
+            # 3. コピーすると、別のリストになる
+            c = a.copy()
+            c.append(5)
+            # 4. 代入し直すと、b の矢印だけが付け替わる
+            b = [9]
+            print(a, b, c)
+          `),
+        },
+        {
+          kind: 'problem', problem: {
+            id: 'alias-p1', type: 'predict', kcs: ['alias'],
+            prompt: '出力を予測してください。',
+            params: { a: [1, 9] },
+            code: src(r`
+              x = [$a, 0]
+              y = x
+              y[1] = 5
+              z = x[:]
+              z[0] = 100
+              print(x, y, z)
+              print(x is y, x is z, x == y)
+            `),
+            explain: 'y = x で y と x は同じリストを指すので、y[1] = 5 は x からも見えます。x[:] はコピーなので、z を変えても x は変わりません。',
+          },
+        },
+        {
+          kind: 'problem', problem: {
+            id: 'alias-c1', type: 'choice', kcs: ['mutable', 'alias'],
+            prompt: '`a = 5`、`b = a`、`b = b + 1` のあと、a の値はどれですか。',
+            choices: [
+              { text: '6', why: '数は変えられないオブジェクトです。`b = b + 1` は新しい数 6 を作って、b の矢印を付け替えるだけです。' },
+              { text: '5', why: 'そのとおりです。a は元の 5 を指したままです。' },
+              { text: 'エラーになる', why: 'どの行も正しい書き方です。' },
+            ],
+            answer: 1,
+          },
+        },
+        {
+          kind: 'problem', problem: {
+            id: 'alias-p2', type: 'predict', kcs: ['mutable', 'alias'],
+            prompt: '出力を予測してください。`+=` と `+` の違いに注意します。',
+            code: src(r`
+              a = [1]
+              b = a
+              b += [2]
+              c = a
+              c = c + [3]
+              print(a, b, c)
+            `),
+            explain: 'リストの `+=` は、そのリスト自身に要素を足します(append と同じく中身を変える)。`c = c + [3]` は新しいリストを作って c を付け替えます。',
+          },
+        },
+      ],
+    },
+    {
+      id: 'l2', title: '関数と共有',
+      steps: [
+        {
+          kind: 'read', title: '引数も矢印を渡す',
+          body: L(
+            '- 関数を呼ぶと、引数の名前は「呼び出し元と同じオブジェクト」を指します。',
+            '- だから関数の中で `nums.append(...)` や `nums[0] = ...` とリストを変えると、呼び出し元のリストも変わります。',
+            '- 関数の中で `nums = [...]` と代入し直すと、関数の中の矢印が付け替わるだけで、呼び出し元は変わりません。',
+            '- 既定引数 `def add(x, box=[]):` の `[]` は、関数を作るときに 1 回だけ作られ、呼ぶたびに使い回されます。空のリストがほしいなら `box=None` にして、中で `if box is None: box = []` とします。',
+          ),
+          example: src(r`
+            def add_bonus(scores):
+                # 1. scores は呼び出し元と同じリストを指す
+                for i in range(len(scores)):
+                    scores[i] += 10
+                # 2. 代入し直すと、関数の中の矢印だけが変わる
+                scores = []
+
+            mine = [60, 75]
+            add_bonus(mine)
+            print(mine)
+          `),
+        },
+        {
+          kind: 'problem', problem: {
+            id: 'alias-p3', type: 'predict', kcs: ['argshare'],
+            prompt: '出力を予測してください。',
+            params: { a: [1, 9] },
+            code: src(r`
+              def change(lst, n):
+                  lst.append(n)
+                  n = n * 10
+                  lst = [0]
+
+              data = [$a]
+              k = 3
+              change(data, k)
+              print(data, k)
+            `),
+            explain: 'lst.append(n) は共有しているリストを変えるので、data に残ります。n = n * 10 と lst = [0] は、関数の中の矢印を付け替えるだけです。',
+          },
+        },
+        {
+          kind: 'problem', problem: {
+            id: 'alias-p4', type: 'predict', kcs: ['defaultarg'],
+            prompt: '出力を予測してください。',
+            code: src(r`
+              def log(msg, history=[]):
+                  history.append(msg)
+                  return history
+
+              a = log("起動")
+              b = log("保存")
+              print(a)
+              print(a is b)
+            `),
+            explain: '既定引数の [] は関数を作ったときに 1 つだけ作られます。2 回目の呼び出しも同じリストに追加するので、a と b は同じリストです。',
+          },
+        },
+        {
+          kind: 'problem', problem: {
+            id: 'alias-w1', type: 'write', kcs: ['defaultarg', 'argshare'],
+            prompt: '下の `log` は、呼ぶたびに前の記録が残ってしまいます。既定引数を `None` にして、呼ぶたびに新しいリストから始まるように直してください。',
+            starter: src(r`
+              def log(msg, history=[]):
+                  history.append(msg)
+                  return history
+
+              print(log("起動"))
+              print(log("保存"))
+            `),
+            solution: src(r`
+              def log(msg, history=None):
+                  if history is None:
+                      history = []
+                  history.append(msg)
+                  return history
+
+              print(log("起動"))
+              print(log("保存"))
+            `),
+            tests: [{}, { append: 'print(log("終了"))\nprint(log("a", ["x"]))' }],
+            hints: ['`def log(msg, history=None):` にします。', '関数の最初で `if history is None:` なら `history = []` とします。'],
+          },
+        },
+      ],
+    },
+    {
+      id: 'l3', title: '入れ子のリスト',
+      steps: [
+        {
+          kind: 'read', title: '[[0] * 3] * 2 は同じ行を 2 回指す',
+          body: L(
+            '- `[0] * 3` は `[0, 0, 0]` です。',
+            '- `[[0] * 3] * 2` は、**同じ 1 つの行**を指す矢印を 2 本並べたリストになります。1 つの行を変えると、両方の行が変わって見えます。',
+            '- 行ごとに別のリストを作るには `[[0] * 3 for _ in range(2)]` と書きます。',
+            '- `copy()` は外側だけをコピーします(浅いコピー)。中の行は共有したままです。',
+          ),
+          example: src(r`
+            # 1. 同じ行を 2 回指している
+            bad = [[0] * 3] * 2
+            bad[0][0] = 1
+            # 2. 行ごとに別のリストを作る
+            good = [[0] * 3 for _ in range(2)]
+            good[0][0] = 1
+            print(bad)
+            print(good)
+          `),
+        },
+        {
+          kind: 'problem', problem: {
+            id: 'alias-c2', type: 'choice', kcs: ['copy'],
+            prompt: '`a = [[1, 2], [3]]`、`b = a.copy()`、`b[0].append(9)` のあと、a はどうなっていますか。',
+            choices: [
+              { text: '[[1, 2], [3]]', why: 'copy() は外側のリストだけをコピーします。b[0] と a[0] は同じ内側のリストです。' },
+              { text: '[[1, 2, 9], [3]]', why: 'そのとおりです。内側のリストは共有されているので、a からも 9 が見えます。' },
+              { text: '[[1, 2], [3], 9]', why: 'append したのは b[0](内側のリスト)で、外側ではありません。' },
+            ],
+            answer: 1,
+          },
+        },
+        {
+          kind: 'problem', problem: {
+            id: 'alias-f1', type: 'fill', kcs: ['copy'],
+            prompt: '3 行 3 列の表を作り、対角線(左上から右下)に 1 を入れて表示します。各行が別のリストになるように、空欄を埋めてください。',
+            code: src(r`
+              n = 3
+              grid = [[0] * n for _ in ___(n)]
+              for i in range(n):
+                  grid[i][___] = 1
+              for row in grid:
+                  print(row)
+            `),
+            answers: ['range', 'i'],
+            tests: [{}],
+          },
+        },
+      ],
+    },
+  ],
+  check: [
+    {
+      id: 'alias-k1', type: 'predict', kcs: ['alias', 'mutable'],
+      prompt: '出力を予測してください。',
+      params: { a: [1, 9] },
+      code: src(r`
+        p = [$a]
+        q = p
+        q.append(2)
+        q = q + [3]
+        q.append(4)
+        print(p, q)
+      `),
+    },
+    {
+      id: 'alias-k2', type: 'predict', kcs: ['argshare'],
+      prompt: '出力を予測してください。',
+      code: src(r`
+        def reset(lst):
+            lst = []
+
+        def clear(lst):
+            lst.clear()
+
+        a = [1, 2]
+        b = [3, 4]
+        reset(a)
+        clear(b)
+        print(a, b)
+      `),
+    },
+    {
+      id: 'alias-k3', type: 'choice', kcs: ['copy', 'alias'],
+      prompt: '`rows = [[]] * 3`、`rows[0].append("x")` のあと、`print(rows)` の出力はどれですか。',
+      choices: [
+        { text: "[['x'], [], []]", why: '`[[]] * 3` は、同じ 1 つの空リストを 3 回指しています。' },
+        { text: "[['x'], ['x'], ['x']]", why: 'そのとおりです。3 つの要素は同じリストなので、どれから見ても x が入っています。' },
+        { text: "[[], [], [], 'x']", why: 'append したのは rows[0] で、rows そのものではありません。' },
+      ],
+      answer: 1,
+    },
+    {
+      id: 'alias-k4', type: 'write', kcs: ['argshare', 'copy'],
+      prompt: 'リストを受け取り、**元のリストを変えずに**、各要素を 2 倍にした新しいリストを返す関数 `doubled(nums)` を作ってください。',
+      starter: src(r`
+        def doubled(nums):
+            pass  # ここに書く
+
+        a = [1, 2, 3]
+        b = doubled(a)
+        print(a, b)
+      `),
+      solution: src(r`
+        def doubled(nums):
+            out = []
+            for x in nums:
+                out.append(x * 2)
+            return out
+
+        a = [1, 2, 3]
+        b = doubled(a)
+        print(a, b)
+      `),
+      tests: [{}, { append: 'c = [5, 0]\nprint(doubled(c), c)' }],
+      hints: ['新しい空のリストを作り、そこへ 2 倍した値を append して返します。nums 自身には書き込みません。'],
     },
   ],
 };

@@ -7,8 +7,8 @@ export interface TestRecord { at: number; kind: 'diag' | 'post'; score: number; 
 export interface State {
   v: 1;
   startedAt: number;
-  /** 作品コースの系統 */
-  track: 'pc' | 'mcu' | null;
+  /** はじめの画面を終えたか */
+  started: boolean;
   /** 診断で決めた出発点(単元 ID)。経験者は途中の単元から始める */
   startUnit: string | null;
   kc: Record<string, KCState>;
@@ -22,10 +22,10 @@ export interface State {
   log: { t: number; id: string; ok: boolean }[];
 }
 
-const KEY = 'c-michi:v1';
+const KEY = 'py-michi:v1';
 
 const fresh = (): State => ({
-  v: 1, startedAt: Date.now(), track: null, startUnit: null,
+  v: 1, startedAt: Date.now(), started: false, startUnit: null,
   kc: {}, cards: {}, done: {}, passed: {}, tests: [], drafts: {}, log: [],
 });
 

@@ -1,7 +1,15 @@
-// 問題の具体化(値の差し替え)と採点。正解はすべてインタプリタで実行して求める
+// 問題の具体化(値の差し替え)と採点。正解はすべて参照解を Python で実行して求める
 import type { Params, Problem, TestCase } from '../content/types';
-import { run, type RunResult } from '../interp/interp';
+import type { PyRunOptions, PyRunResult } from '../py/types';
+import { lookup } from '../py/show';
 import { rng } from './engine';
+
+export type PyRun = (code: string, opts?: PyRunOptions) => Promise<PyRunResult>;
+
+// 画面では Worker の Pyodide を使う。試験では Node の Pyodide に差し替える
+let runner: PyRun = async (code, opts) => (await import('../py/session')).runPy(code, opts);
+export function setRunner(r: PyRun) { runner = r; refCache.clear(); }
+export const runCode: PyRun = (code, opts) => runner(code, opts);
 
 /** 値を差し替えた問題。$a のような印を、種から決まる値に置き換える */
 export function instantiate(p: Problem, seed: number): Problem {
@@ -34,8 +42,10 @@ export interface TestResult {
   want: string;
   got: string;
   verdict: 'same' | 'format' | 'different' | 'error';
-  run: RunResult;
+  run: PyRunResult;
   hidden?: boolean;
+  /** set・append で変えた中身の説明 */
+  note?: string;
 }
 
 export interface Grade {
@@ -43,39 +53,56 @@ export interface Grade {
   /** 書式だけが違う(正解として扱い、注意を添える) */
   formatOnly?: boolean;
   tests?: TestResult[];
-  leak?: boolean;
   message?: string;
 }
 
 const refCache = new Map<string, string>();
 
-function expected(ref: string, t: TestCase): string {
+export async function expected(ref: string, t: TestCase): Promise<string> {
   if (t.expect !== undefined) return t.expect;
   const key = ref + '\u0000' + (t.stdin ?? '');
   let v = refCache.get(key);
   if (v === undefined) {
-    const r = run(ref, { stdin: t.stdin });
-    if (r.error) throw new Error(`参照解が実行できません: ${r.error.message}`);
+    const r = await runner(ref, { stdin: t.stdin, maxTrace: 0 });
+    if (r.status !== 'ok') throw new Error(`参照解が実行できません: ${r.error?.type} ${r.error?.message}`);
     v = r.stdout;
     refCache.set(key, v);
   }
   return v;
 }
 
-export function runTests(code: string, ref: string, tests: TestCase[], noLeak = false): Grade {
-  const results: TestResult[] = tests.map((t) => {
-    const want = expected(ref, t);
-    const r = run(code, { stdin: t.stdin, maxSteps: 300_000 });
-    const verdict = r.error ? 'error' : compareOutput(r.stdout, want);
-    return { stdin: t.stdin, want, got: r.stdout, verdict, run: r, hidden: t.hidden };
-  });
+/** テストの set・append を、解答にも参照解にも同じように当てる */
+export function applyTest(code: string, t: TestCase): string {
+  let out = code;
+  for (const [name, value] of Object.entries(t.set ?? {})) {
+    out = out.replace(new RegExp(`^${name}\\s*=(?!=).*$`, 'm'), `${name} = ${value}`);
+  }
+  if (t.append) out = out.replace(/\s*$/, '\n') + t.append + '\n';
+  return out;
+}
+
+function testNote(t: TestCase): string | undefined {
+  const parts: string[] = [];
+  const set = Object.entries(t.set ?? {});
+  if (set.length) parts.push(`値を ${set.map(([k, v]) => `${k} = ${v}`).join('、')} に変えて動かしました。`);
+  if (t.append) parts.push(`最後に次の行を足して動かしました。\n${t.append}`);
+  return parts.length ? parts.join('\n') : undefined;
+}
+
+export async function runTests(code: string, ref: string, tests: TestCase[]): Promise<Grade> {
+  const results: TestResult[] = [];
+  // 1 つずつ順に動かす(実行環境は 1 つなので、並べても速くならない)
+  for (const t of tests) {
+    const want = await expected(applyTest(ref, t), t);
+    const r = await runner(applyTest(code, t), { stdin: t.stdin, maxSteps: 300_000, maxTrace: 0 });
+    const verdict = r.status !== 'ok' ? 'error' : compareOutput(r.stdout, want);
+    results.push({ stdin: t.stdin, want, got: r.stdout, verdict, run: r, hidden: t.hidden, note: testNote(t) });
+  }
   const passed = results.every((t) => t.verdict === 'same' || t.verdict === 'format');
-  const leak = noLeak && results.some((t) => t.run.leaks.length > 0);
   return {
-    ok: passed && !leak,
+    ok: passed,
     formatOnly: passed && results.some((t) => t.verdict === 'format'),
     tests: results,
-    leak,
   };
 }
 
@@ -96,18 +123,12 @@ export function fillBlanks(code: string, answers: string[]): string {
 }
 
 /** トレース表の正解。指定した行に来た時点(その行を実行する前)の変数の値を、来た順に並べる */
-export function traceRows(p: Problem & { type: 'trace' }, max = 8): string[][] {
-  const r = run(p.code, { stdin: p.stdin, trace: true });
+export async function traceRows(p: Problem & { type: 'trace' }, max = 8): Promise<string[][]> {
+  const r = await runner(p.code, { stdin: p.stdin });
   const rows: string[][] = [];
   for (const s of r.trace) {
-    if (s.line !== p.line || s.event) continue;
-    const top = s.frames[s.frames.length - 1];
-    rows.push(p.vars.map((name) => {
-      const v = top?.vars.find((x) => x.name === name) ?? s.globals.find((x) => x.name === name);
-      if (!v) return '—';
-      const c = v.cells[0];
-      return c.init ? c.text : '?';
-    }));
+    if (s.line !== p.line || s.event !== 'line') continue;
+    rows.push(p.vars.map((name) => lookup(s, name) ?? '—'));
     if (rows.length >= max) break;
   }
   return rows;
@@ -119,7 +140,11 @@ export function checkPredict(answer: string, actual: string): boolean {
   return norm(answer) === norm(actual);
 }
 
+/** トレース表の 1 マスを比べる。文字列は引用符の有無と種類を問わない。空白の入れ方も問わない */
 export function checkTraceCell(answer: string, want: string): boolean {
-  const a = answer.trim().replace(/^'(.)'$/, '$1');
-  return a === want || (want === '?' && /^(\?|ゴミ|不定)$/.test(a));
+  const norm = (s: string) => s.trim().replace(/"/g, "'").replace(/\s+/g, ' ').replace(/\s*([,:\[\](){}])\s*/g, '$1');
+  const a = norm(answer), w = norm(want);
+  if (a === w) return true;
+  const m = /^'(.*)'$/.exec(w);
+  return !!m && a === m[1];
 }

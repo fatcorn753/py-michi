@@ -1,14 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowDown, ArrowUp, CheckCircle2, Lightbulb, Plus, X, XCircle } from 'lucide-react';
 import type { Problem } from '../content/types';
-import { run, type RunResult } from '../interp/interp';
-import { runAsync } from '../interp/runAsync';
-import { checkPredict, checkTraceCell, fillBlanks, instantiate, referenceCode, runTests, traceRows, type Grade } from '../learn/grade';
+import type { PyRunResult } from '../py/types';
+import { checkPredict, checkTraceCell, fillBlanks, instantiate, referenceCode, runCode, runTests, traceRows, type Grade } from '../learn/grade';
 import { rng } from '../learn/engine';
 import { store } from '../learn/store';
 import { CodeEditor, CodeView } from './CodeEditor';
-import { RunPanel } from './RunPanel';
-import { Stepper } from './Stepper';
+import { PyRunPanel } from './py/PyRunPanel';
+import { PyStepper } from './py/PyStepper';
 
 const ic = { strokeWidth: 1.75, 'aria-hidden': true } as const;
 
@@ -66,10 +65,13 @@ function Explain({ text }: { text?: string }) {
 // ───── 出力の予測 ─────
 function Predict({ p, report, giveUp }: { p: Problem & { type: 'predict' } } & Common) {
   const [ans, setAns] = useState('');
-  const [res, setRes] = useState<{ ok: boolean; run: RunResult; dontKnow: boolean } | null>(null);
+  const [res, setRes] = useState<{ ok: boolean; run: PyRunResult; dontKnow: boolean } | null>(null);
   const [step, setStep] = useState(false);
-  const check = (dontKnow = false) => {
-    const r = run(p.code, { stdin: p.stdin, trace: true });
+  const [busy, setBusy] = useState(false);
+  const check = async (dontKnow = false) => {
+    if (busy) return;
+    setBusy(true);
+    const r = await runCode(p.code, { stdin: p.stdin }).finally(() => setBusy(false));
     const ok = !dontKnow && checkPredict(ans, r.stdout);
     setRes({ ok, run: r, dontKnow });
     // 予測はやり直せないので、外れても答えを見たことにして先へ進めるようにする
@@ -87,7 +89,7 @@ function Predict({ p, report, giveUp }: { p: Problem & { type: 'predict' } } & C
       {!res ? (
         <div className="row row-end">
           <button className="td-btn" data-variant="ghost" type="button" onClick={() => { setAns(''); check(true); }}>分からない</button>
-          <button className="td-btn" data-variant="primary" type="button" onClick={() => check()}>実行して確かめる</button>
+          <button className="td-btn" data-variant="primary" type="button" onClick={() => check()} aria-busy={busy}>実行して確かめる</button>
         </div>
       ) : (
         <div className="feedback">
@@ -102,7 +104,7 @@ function Predict({ p, report, giveUp }: { p: Problem & { type: 'predict' } } & C
           {!step ? (
             <div><button className="td-btn" type="button" onClick={() => setStep(true)}>1 行ずつ動きを見る</button></div>
           ) : (
-            <Stepper code={p.code} result={res.run} />
+            <PyStepper code={p.code} result={res.run} />
           )}
         </div>
       )}
@@ -158,8 +160,20 @@ export function Inline({ text }: { text: string }) {
 }
 
 // ───── トレース表 ─────
-function Trace({ p, report, giveUp }: { p: Problem & { type: 'trace' } } & Common) {
-  const want = useMemo(() => traceRows(p), [p]);
+function Trace(props: { p: Problem & { type: 'trace' } } & Common) {
+  // 正解の表は実行して求める。求まるまでは待ちの表示を出す
+  const [want, setWant] = useState<string[][] | null>(null);
+  useEffect(() => {
+    let live = true;
+    setWant(null);
+    traceRows(props.p).then((w) => { if (live) setWant(w); });
+    return () => { live = false; };
+  }, [props.p]);
+  if (!want) return <p className="small muted" role="status">問題を準備しています…</p>;
+  return <TraceTable {...props} want={want} />;
+}
+
+function TraceTable({ p, report, giveUp, want }: { p: Problem & { type: 'trace' }; want: string[][] } & Common) {
   const [cells, setCells] = useState<string[][]>(() => want.map((r) => r.map(() => '')));
   const [marks, setMarks] = useState<boolean[][] | null>(null);
   const [tries, setTries] = useState(0);
@@ -176,7 +190,7 @@ function Trace({ p, report, giveUp }: { p: Problem & { type: 'trace' } } & Commo
   return (
     <>
       <CodeView code={p.code} current={p.line} />
-      <p className="small muted">{p.line} 行目(→ の行)に来るたびに、その行を実行する前の値を書いてください。値が決まっていないときは「?」と書きます。</p>
+      <p className="small muted">{p.line} 行目(→ の行)に来るたびに、その行を実行する前の値を書いてください。文字列は引用符を付けても付けなくてもかまいません。</p>
       <div className="td-table-wrap">
         <table className="td-table trace-table">
           <thead><tr><th>回目</th>{p.vars.map((v) => <th key={v}><code>{v}</code></th>)}</tr></thead>
@@ -233,8 +247,11 @@ function Parsons({ p, seed, report, giveUp }: { p: Problem & { type: 'parsons' }
     [a[i], a[j]] = [a[j], a[i]];
     setAns(a); setGrade(null);
   };
-  const check = () => {
-    const g = runTests(code, ref, p.tests);
+  const [busy, setBusy] = useState(false);
+  const check = async () => {
+    if (busy) return;
+    setBusy(true);
+    const g = await runTests(code, ref, p.tests).finally(() => setBusy(false));
     setGrade(g); setTries(tries + 1); report(g.ok);
   };
   const show = () => { setAns(p.lines.map((text, i) => ({ id: i, text }))); setPool(pool0.filter((x) => x.id >= p.lines.length)); setGrade(null); giveUp(); };
@@ -271,7 +288,7 @@ function Parsons({ p, seed, report, giveUp }: { p: Problem & { type: 'parsons' }
       {!grade?.ok && (
         <div className="row row-end">
           {tries >= 2 && <button className="td-btn" data-variant="ghost" type="button" onClick={show}>答えを見る</button>}
-          <button className="td-btn" data-variant="primary" type="button" onClick={() => check()}>実行して確かめる</button>
+          <button className="td-btn" data-variant="primary" type="button" onClick={() => check()} aria-busy={busy}>実行して確かめる</button>
         </div>
       )}
       {grade && <GradeView grade={grade} />}
@@ -287,8 +304,11 @@ function Fill({ p, report, giveUp }: { p: Problem & { type: 'fill' } } & Common)
   const [grade, setGrade] = useState<Grade | null>(null);
   const [tries, setTries] = useState(0);
   const ref = referenceCode(p);
-  const check = () => {
-    const g = runTests(fillBlanks(p.code, vals), ref, p.tests);
+  const [busy, setBusy] = useState(false);
+  const check = async () => {
+    if (busy) return;
+    setBusy(true);
+    const g = await runTests(fillBlanks(p.code, vals), ref, p.tests).finally(() => setBusy(false));
     setGrade(g); setTries(tries + 1); report(g.ok);
   };
   const show = () => { setVals([...p.answers]); setGrade(null); giveUp(); };
@@ -311,7 +331,7 @@ function Fill({ p, report, giveUp }: { p: Problem & { type: 'fill' } } & Common)
       {!grade?.ok && (
         <div className="row row-end">
           {tries >= 2 && <button className="td-btn" data-variant="ghost" type="button" onClick={show}>答えを見る</button>}
-          <button className="td-btn" data-variant="primary" type="button" onClick={() => check()}>実行して確かめる</button>
+          <button className="td-btn" data-variant="primary" type="button" onClick={() => check()} aria-busy={busy}>実行して確かめる</button>
         </div>
       )}
       {grade && <GradeView grade={grade} />}
@@ -324,7 +344,7 @@ function Fill({ p, report, giveUp }: { p: Problem & { type: 'fill' } } & Common)
 function Write({ p, report, giveUp }: { p: Problem & { type: 'write' } } & Common) {
   const [code, setCode] = useState(() => store.get().drafts[p.id] ?? p.starter);
   const [stdin, setStdin] = useState(p.tests[0]?.stdin ?? '');
-  const [result, setResult] = useState<RunResult | null>(null);
+  const [result, setResult] = useState<PyRunResult | null>(null);
   const [grade, setGrade] = useState<Grade | null>(null);
   const [hints, setHints] = useState(0);
   const [tries, setTries] = useState(0);
@@ -338,17 +358,17 @@ function Write({ p, report, giveUp }: { p: Problem & { type: 'write' } } & Commo
 
   const tryRun = async () => {
     setBusy(true); setGrade(null);
-    setResult(await runAsync(code, { stdin, trace: true }));
-    setBusy(false);
+    setResult(await runCode(code, { stdin }).finally(() => setBusy(false)));
   };
-  const submit = () => {
-    setResult(null);
-    const g = runTests(code, p.solution, p.tests, p.noLeak);
+  const submit = async () => {
+    if (busy) return;
+    setResult(null); setBusy(true);
+    const g = await runTests(code, p.solution, p.tests).finally(() => setBusy(false));
     setGrade(g); setTries(tries + 1);
     // ヒントを見てから正解した場合は、自力の正解として数えない
     report(g.ok && hints === 0);
   };
-  const errLine = (result?.error ?? grade?.tests?.find((t) => t.run.error)?.run.error)?.line;
+  const errLine = (result?.error ?? grade?.tests?.find((t) => t.run.error)?.run.error)?.line ?? undefined;
   return (
     <>
       <CodeEditor value={code} onChange={(v) => { setCode(v); setGrade(null); }} label="コード" errorLine={errLine} onRun={tryRun} />
@@ -362,7 +382,7 @@ function Write({ p, report, giveUp }: { p: Problem & { type: 'write' } } & Commo
         )}
         {tries >= 3 && !grade?.ok && !showSol && <button className="td-btn" data-variant="ghost" type="button" onClick={() => { setShowSol(true); giveUp(); }}>解答例を見る</button>}
         <button className="td-btn" type="button" onClick={tryRun} aria-busy={busy}>試しに実行</button>
-        <button className="td-btn" data-variant="primary" type="button" onClick={submit}>提出する</button>
+        <button className="td-btn" data-variant="primary" type="button" onClick={submit} aria-busy={busy}>提出する</button>
       </div>
       {hints > 0 && (
         <ol className="prose small">
@@ -371,8 +391,8 @@ function Write({ p, report, giveUp }: { p: Problem & { type: 'write' } } & Commo
       )}
       {result && (
         <div className="stack">
-          <RunPanel result={result} />
-          {result.trace.length > 1 && <details><summary>1 行ずつ動きを見る</summary><Stepper code={code} result={result} /></details>}
+          <PyRunPanel result={result} />
+          {result.trace.length > 1 && <details><summary>1 行ずつ動きを見る</summary><PyStepper code={code} result={result} /></details>}
         </div>
       )}
       {grade && <GradeView grade={grade} />}
@@ -398,20 +418,19 @@ function GradeView({ grade }: { grade: Grade }) {
       <Verdict ok={grade.ok}>
         <p>テスト {passed} / {tests.length} 件に合格しました。</p>
         {grade.formatOnly && <p>中身は合っていますが、行末の空白か最後の改行が違います。採点では許していますが、本物の採点では間違いになることがあります。</p>}
-        {grade.leak && <p>出力は合っていますが、free していないメモリがあります(メモリリーク)。</p>}
       </Verdict>
       {firstBad && (
         <div className="stack">
           {firstBad.stdin !== undefined && !firstBad.hidden && <div><p className="label-sm">この入力で確かめました</p><pre className="output">{firstBad.stdin}</pre></div>}
+          {firstBad.note && !firstBad.hidden && <pre className="output">{firstBad.note}</pre>}
           {firstBad.run.error ? (
-            <RunPanel result={firstBad.run} />
+            <PyRunPanel result={firstBad.run} />
           ) : (
             <div className="diff">
               <div><p className="label-sm">期待する出力</p><pre className="output">{firstBad.hidden ? '(このテストの中身は見せていません)' : firstBad.want}</pre></div>
               <div><p className="label-sm">あなたのプログラムの出力</p><pre className="output">{firstBad.got}</pre></div>
             </div>
           )}
-          {!firstBad.run.error && firstBad.run.warnings.length > 0 && <RunPanel result={firstBad.run} showOutput={false} />}
         </div>
       )}
     </div>

@@ -1,16 +1,13 @@
 // Pyodide の上で、トレーサーと止める仕組みを確かめる(Node で node_modules の pyodide を使う)
 import { beforeAll, describe, expect, it } from 'vitest';
-import { loadPyodide, type PyodideAPI } from 'pyodide';
-import { installTracer, runPython } from '../src/py/core';
+import type { PyodideAPI } from 'pyodide';
+import { runPython } from '../src/py/core';
+import { nodePy } from './pyNode';
 import { r, src } from '../src/content/util';
 import { EXAMPLES } from '../src/content/examples';
 
 let py: PyodideAPI;
-beforeAll(async () => {
-  // vitest の変換を通ると自分の場所を見失うので、読み込み元を明示する
-  py = await loadPyodide({ indexURL: decodeURIComponent(new URL('../node_modules/pyodide/', import.meta.url).pathname) });
-  installTracer(py);
-}, 60_000);
+beforeAll(async () => { py = await nodePy(); }, 60_000);
 
 const names = (step: { frames: { locals: [string, string][] }[] }) =>
   Object.fromEntries(step.frames.at(-1)!.locals);

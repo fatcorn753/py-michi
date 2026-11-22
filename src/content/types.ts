@@ -13,7 +13,16 @@ interface ProblemBase {
   explain?: string;
 }
 
-export interface TestCase { stdin?: string; /** 省略すると参照解の出力を正解にする */ expect?: string; hidden?: boolean }
+export interface TestCase {
+  stdin?: string;
+  /** 省略すると参照解の出力を正解にする */
+  expect?: string;
+  hidden?: boolean;
+  /** 行頭の `名前 = …` の最初の 1 行を、この値に置き換えて動かす。数字の直書きで通るのを防ぐ */
+  set?: Record<string, string>;
+  /** 末尾に足して動かすコード。関数を別の引数でも呼んで確かめる */
+  append?: string;
+}
 
 export type Problem = ProblemBase & (
   /** 出力の予測(PRIMM の Predict)。答えた後に実行して確かめる */
@@ -27,7 +36,7 @@ export type Problem = ProblemBase & (
   /** 穴埋め。code の中の ___ を埋める。answers は参照解(採点は実行結果で行う) */
   | { type: 'fill'; code: string; answers: string[]; tests: TestCase[] }
   /** 白紙から書く・直す。solution は参照解 */
-  | { type: 'write'; starter: string; solution: string; tests: TestCase[]; noLeak?: boolean; hints: string[] }
+  | { type: 'write'; starter: string; solution: string; tests: TestCase[]; hints: string[] }
 );
 
 export type Step =

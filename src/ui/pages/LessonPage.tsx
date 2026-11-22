@@ -1,11 +1,12 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ArrowLeft, ArrowRight, CheckCircle2 } from 'lucide-react';
 import { findCourse, findUnit, lessonProgress } from '../../learn/catalog';
 import { guessFor } from '../../learn/engine';
 import { store, useStore } from '../../learn/store';
-import { run } from '../../interp/interp';
+import { runCode } from '../../learn/grade';
+import type { PyRunResult } from '../../py/types';
 import { ProblemView } from '../Problems';
-import { Stepper } from '../Stepper';
+import { PyStepper } from '../py/PyStepper';
 import { Md } from '../Md';
 
 const ic = { className: 'icon-sm', strokeWidth: 1.75, 'aria-hidden': true } as const;
@@ -51,7 +52,7 @@ export function LessonPage({ courseId, unitId, lessonId }: { courseId: string; u
 
   const lesson = unit.lessons.find((l) => l.id === lessonId);
   if (!lesson) return <p>レッスンが見つかりません。</p>;
-  return <LessonPlayer key={lesson.id} courseId={courseId} unitId={unitId} lesson={lesson} next={unit.lessons[unit.lessons.indexOf(lesson) + 1]?.id} />;
+  return <LessonPlayer key={`${courseId}/${unitId}/${lesson.id}`} courseId={courseId} unitId={unitId} lesson={lesson} next={unit.lessons[unit.lessons.indexOf(lesson) + 1]?.id} />;
 }
 
 function LessonPlayer({ courseId, unitId, lesson, next }: { courseId: string; unitId: string; lesson: import('../../content/types').Lesson; next?: string }) {
@@ -63,7 +64,14 @@ function LessonPlayer({ courseId, unitId, lesson, next }: { courseId: string; un
   const step = lesson.steps[i];
   useEffect(() => { setSolved(step.kind === 'read' || !!store.get().done[keyOf(i)]); }, [i]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const exampleRun = useMemo(() => (step.kind === 'read' && step.example ? run(step.example, { stdin: step.stdin, trace: true }) : null), [step]);
+  // 例題は開いたときに実行して、1 行ずつの記録を作る
+  const [exampleRun, setExampleRun] = useState<PyRunResult | null>(null);
+  useEffect(() => {
+    let live = true;
+    setExampleRun(null);
+    if (step.kind === 'read' && step.example) runCode(step.example, { stdin: step.stdin }).then((r) => { if (live) setExampleRun(r); });
+    return () => { live = false; };
+  }, [step]);
   const goNext = () => {
     store.markDone(keyOf(i));
     if (i + 1 < lesson.steps.length) setI(i + 1);
@@ -82,10 +90,11 @@ function LessonPlayer({ courseId, unitId, lesson, next }: { courseId: string; un
         <section className="stack">
           <h2>{step.title}</h2>
           <Md text={step.body} />
+          {step.example && !exampleRun && <p className="small muted" role="status">例題を準備しています…</p>}
           {step.example && exampleRun && (
             <div className="stack">
-              <p className="small muted">例題です。「次へ」で 1 行ずつ動かして、メモリがどう変わるかを見てください。</p>
-              <Stepper code={step.example} result={exampleRun} />
+              <p className="small muted">例題です。「次へ」で 1 行ずつ動かして、名前がどのオブジェクトを指すかを見てください。</p>
+              <PyStepper code={step.example} result={exampleRun} />
             </div>
           )}
         </section>

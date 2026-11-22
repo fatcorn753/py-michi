@@ -54,7 +54,7 @@ export function App() {
   return (
     <div className="app">
       <nav className="side" aria-label="メインメニュー">
-        <div className="brand">C のみち<small>メモリを見ながら学ぶ C 言語</small></div>
+        <div className="brand">Python のみち<small>名前とオブジェクトを見ながら学ぶ Python</small></div>
         {nav.map((n) => (
           <a key={n.key} className="nav-link" href={n.href} aria-current={current === n.key ? 'page' : undefined}>
             {n.icon}{n.label}{n.count ? <span className="count" aria-label={`${n.count} 問`}>{n.count}</span> : null}
