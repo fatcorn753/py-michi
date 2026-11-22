@@ -2,10 +2,17 @@
 // 部品に触るたびにプログラムを上から実行し直し、そのときの部品の並びを画面にする。
 // 名前と使い方は Streamlit に寄せている(卒業後にそのまま本物へ移れるように)。
 export const UI_PY = String.raw`
-import sys, types, json
+import sys, types, json, os, shutil
 
 class UIError(Exception):
     pass
+
+class _Rerun(BaseException):
+    # 学習者の except Exception で止まらないよう BaseException から作る
+    pass
+
+# アプリが読み書きするファイルの置き場。「最初から」では消さず、採点のときだけ空にする
+APP_DIR = "/app"
 
 _ui = types.ModuleType("ui")
 _ui.__doc__ = "画面を組み立てる道具。部品に触るたびに、プログラムを上から実行し直す"
@@ -121,18 +128,28 @@ def bar_chart(data):
         pairs.append([str(k), v])
     _ctx.add({"kind": "bar_chart", "data": pairs})
 
+def rerun():
+    """いまの実行をやめて、すぐ上から実行し直す(state は持ち越す)。消した直後に画面を作り直すのに使う"""
+    raise _Rerun()
+
 def metric(label, value):
     """目立つ数字を 1 つ出す(合計など)"""
     _ctx.add({"kind": "metric", "label": str(label), "text": str(value)})
 
-for _f in (title, header, write, divider, text_input, number_input, selectbox, button, table, bar_chart, metric):
+for _f in (title, header, write, divider, text_input, number_input, selectbox, button, table, bar_chart, metric, rerun):
     setattr(_ui, _f.__name__, _f)
 _ui.UIError = UIError
 _ui.state = {}
 sys.modules["ui"] = _ui
 
-def ui_begin(app_json):
-    _ctx.reset(json.loads(app_json) if app_json else {})
+def ui_begin(app, is_app=False, first=False):
+    """実行の前に部品を空にする。アプリなら作業フォルダへ移り、頼まれたら中のファイルを消す"""
+    _ctx.reset(app)
+    if is_app:
+        if first and app.get("wipeFiles"):
+            shutil.rmtree(APP_DIR, ignore_errors=True)
+        os.makedirs(APP_DIR, exist_ok=True)
+        os.chdir(APP_DIR)
 
 def ui_end():
     """画面と state を返す。state は次の実行へ持ち越すので、JSON にできる値だけを許す"""

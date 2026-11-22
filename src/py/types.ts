@@ -17,6 +17,8 @@ export interface AppInput {
   /** この実行の直前に押したボタンの id */
   clicked: string | null;
   state: unknown;
+  /** 実行の前に、アプリの作業フォルダのファイルを消す(採点を毎回同じ条件で始めるため) */
+  wipeFiles?: boolean;
 }
 
 /** ui の部品 1 つ。実行のたびに上から並べ直したもの */

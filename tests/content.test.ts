@@ -50,6 +50,10 @@ describe('教材の形', () => {
     const ids = problems.map((p) => p.id);
     expect(ids.length).toBe(new Set(ids).size);
   });
+  it('単元 ID はコースをまたいでも重複しない(合格の記録は単元 ID で持つため)', () => {
+    const ids = COURSES.flatMap((c) => c.units.map((u) => u.id));
+    expect(ids.length).toBe(new Set(ids).size);
+  });
   it('KC はすべて定義済み', () => {
     for (const p of problems) for (const k of p.kcs) expect(kcIds.has(k), `${p.id}: ${k}`).toBe(true);
     for (const c of COURSES) for (const u of c.units) for (const k of u.kcs) expect(kcIds.has(k), `${u.id}: ${k}`).toBe(true);

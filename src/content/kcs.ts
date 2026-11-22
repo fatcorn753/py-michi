@@ -31,4 +31,8 @@ export const KCS: KC[] = [
   { id: 'ui-input', label: '入力欄から値を受け取る' },
   { id: 'rerun', label: '触るたびに上から実行し直す', confusable: ['ui-input'] },
   { id: 'button', label: 'ボタンは押した直後だけ True', confusable: ['rerun'] },
+  { id: 'state', label: 'ui.state で実行をまたいで値を残す', confusable: ['rerun'] },
+  { id: 'delete', label: '消したら ui.rerun で作り直す' },
+  { id: 'chart', label: '分類ごとに集計してグラフにする', confusable: ['count'] },
+  { id: 'file', label: 'ファイルに保存して読み戻す', confusable: ['state'] },
 ];

@@ -79,4 +79,57 @@ describe('ui', () => {
     expect(usesUi('import uix')).toBe(false);
     expect(usesUi('# import ui')).toBe(false);
   });
+  it('ui.rerun はすぐ上から実行し直し、消した後の画面を返す', async () => {
+    const code = `import ui
+if "items" not in ui.state:
+    ui.state["items"] = ["a", "b", "c"]
+items = ui.state["items"]
+for i in range(len(items)):
+    ui.write(items[i])
+    if ui.button("削除", key="del" + str(i)):
+        items.pop(i)
+        ui.rerun()
+`;
+    const { result } = await replayApp(nodeRun, code, [{ click: 'del1' }]);
+    expect(result.status, JSON.stringify(result.error)).toBe('ok');
+    expect(screenText(result.app!.elements)).toBe('a\n(削除)\nc\n(削除)');
+    expect(result.app!.state).toEqual({ items: ['a', 'c'] });
+  });
+
+  it('ui.rerun を毎回呼ぶと止める', async () => {
+    const r = await nodeRun('import ui\nui.rerun()', { app: { inputs: {}, clicked: null, state: null } });
+    expect(r.error?.type).toBe('UIError');
+  });
+
+  it('except Exception では ui.rerun を止められない', async () => {
+    const code = 'import ui\nui.state["n"] = ui.state.get("n", 0) + 1\nif ui.state["n"] == 1:\n    try:\n        ui.rerun()\n    except Exception:\n        ui.write("caught")\nui.write(ui.state["n"])';
+    const r = await nodeRun(code, { app: { inputs: {}, clicked: null, state: null } });
+    expect(screenText(r.app!.elements)).toBe('2');
+  });
+
+  const SAVE = `import ui, json, os
+if "items" not in ui.state:
+    if os.path.exists("k.json"):
+        with open("k.json") as f:
+            ui.state["items"] = json.load(f)
+    else:
+        ui.state["items"] = []
+name = ui.text_input("品名")
+if ui.button("追加"):
+    ui.state["items"].append(name)
+    with open("k.json", "w") as f:
+        json.dump(ui.state["items"], f, ensure_ascii=False)
+ui.write(len(ui.state["items"]), "件")
+`;
+
+  it('restart は state を捨てるが、ファイルは残る', async () => {
+    const { result } = await replayApp(nodeRun, SAVE, [{ set: { 品名: 'パン' } }, { click: '追加' }, { restart: true }]);
+    expect(screenText(result.app!.elements)).toBe('[品名: ]\n(追加)\n1 件');
+  });
+
+  it('採点の操作は、前に書いたファイルを消してから始める', async () => {
+    await replayApp(nodeRun, SAVE, [{ set: { 品名: 'パン' } }, { click: '追加' }]);
+    const { result } = await replayApp(nodeRun, SAVE, []);
+    expect(screenText(result.app!.elements)).toContain('0 件');
+  });
 });

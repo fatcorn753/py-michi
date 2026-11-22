@@ -132,10 +132,22 @@ def run_entry(code, max_steps, max_trace, out_len, app_json=None):
     """実行して、状態・エラー・記録を JSON 文字列で返す。app_json があれば ui の画面も返す"""
     status, err = "ok", None
     app = app_json is not None
+    cur = json.loads(app_json) if app else {}
     # アプリでなくても毎回空にする(前の実行の部品や state を持ち越さないため)
-    ui_begin(app_json)
+    ui_begin(cur, app, first=True)
     try:
-        run_traced(code, max_steps, max_trace, out_len)
+        reruns = 0
+        while True:
+            try:
+                run_traced(code, max_steps, max_trace, out_len)
+                break
+            except _Rerun:
+                # ui.rerun(): state を持ち越し、ボタンは押していない扱いで上から実行し直す
+                reruns += 1
+                if reruns > 3:
+                    raise UIError("ui.rerun() で続けて 3 回より多く実行し直しました。ボタンを押したときの if の中だけで呼んでください")
+                cur = {"inputs": cur.get("inputs"), "clicked": None, "state": ui_end()["state"]}
+                ui_begin(cur, app)
         if app:
             _state["app"] = ui_end()
     except StepLimit:

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { RotateCcw } from 'lucide-react';
+import { RotateCcw, Trash2 } from 'lucide-react';
 import type { AppInput, PyRunOptions, PyRunResult, UiElement } from '../../py/types';
 import { PyErrorNotice } from './PyRunPanel';
 import { PyStepper } from './PyStepper';
@@ -108,6 +108,8 @@ export function AppPanel({ code, run }: { code: string; run: Run }) {
   const [result, setResult] = useState<PyRunResult | null>(null);
   const [busy, setBusy] = useState(false);
   const [runs, setRuns] = useState(0);
+  // ファイルを書くアプリだけに「保存も消す」を出す
+  const usesFiles = /\bopen\s*\(/.test(code);
 
   // 実行は順番待ちにする。入力欄を確定した直後にボタンを押すと 2 つの実行が続けて来るが、
   // 後の実行が前の実行の state を受け取れるよう、中身は順番が来たときに組み立てる
@@ -120,8 +122,9 @@ export function AppPanel({ code, run }: { code: string; run: Run }) {
       change?.(app.current);
       try {
         const r = await run(code, { app: { ...app.current, inputs: { ...app.current.inputs } } });
-        // ボタンは押した直後の 1 回だけ。state は次の実行へ持ち越す
+        // ボタンは押した直後の 1 回だけ。ファイルを消すのも頼まれた 1 回だけ。state は次の実行へ持ち越す
         app.current.clicked = null;
+        app.current.wipeFiles = false;
         if (r.app) app.current.state = r.app.state;
         setResult(r);
         setRuns((n) => n + 1);
@@ -138,16 +141,27 @@ export function AppPanel({ code, run }: { code: string; run: Run }) {
   const started = useRef(false);
   useEffect(() => { if (started.current) return; started.current = true; go(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const restart = () => { setRuns(0); go((a) => { a.inputs = {}; a.clicked = null; a.state = null; }); };
+  // 「最初から」は state を捨てるが、保存したファイルは残す(アプリを開き直したのと同じ)
+  const restart = (wipeFiles = false) => {
+    setRuns(0);
+    go((a) => { a.inputs = {}; a.clicked = null; a.state = null; a.wipeFiles = wipeFiles; });
+  };
 
   return (
     <div className="stack" aria-live="polite">
       <div className="app-frame">
         <div className="app-frame-bar">
           <span className="small muted">あなたのアプリ{runs > 0 && `(${runs} 回目の実行)`}</span>
-          <button className="td-btn" data-variant="ghost" type="button" onClick={restart} disabled={busy}>
-            <RotateCcw className="icon-sm" strokeWidth={1.75} aria-hidden />最初から
-          </button>
+          <span className="row">
+            {usesFiles && (
+              <button className="td-btn" data-variant="ghost" type="button" onClick={() => restart(true)} disabled={busy}>
+                <Trash2 className="icon-sm" strokeWidth={1.75} aria-hidden />保存も消す
+              </button>
+            )}
+            <button className="td-btn" data-variant="ghost" type="button" onClick={() => restart()} disabled={busy}>
+              <RotateCcw className="icon-sm" strokeWidth={1.75} aria-hidden />最初から
+            </button>
+          </span>
         </div>
         {result?.app ? (
           <AppView

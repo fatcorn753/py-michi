@@ -1,8 +1,11 @@
 // ui を使うアプリを、人の操作をなぞって動かす。採点と試験で、画面の変わり方を確かめるのに使う
 import type { AppInput, PyRunOptions, PyRunResult, UiElement } from './types';
 
-/** 操作 1 つ。set は入力欄に値を入れる(1 回の set で 1 回実行し直す)、click はボタンを押す */
-export type UiAction = { set: Record<string, string | number> } | { click: string };
+/**
+ * 操作 1 つ。set は入力欄に値を入れる(1 回の set で 1 回実行し直す)、click はボタンを押す。
+ * restart は「最初から」と同じで、入力と state を捨てて開き直す(ファイルは残る)
+ */
+export type UiAction = { set: Record<string, string | number> } | { click: string } | { restart: true };
 
 type Run = (code: string, opts?: PyRunOptions) => Promise<PyRunResult>;
 
@@ -22,11 +25,18 @@ function find(elements: UiElement[], name: string, kinds: Set<string>) {
 }
 
 export async function replayApp(run: Run, code: string, actions: UiAction[], opts: PyRunOptions = {}): Promise<AppReplay> {
+  // 前の採点や試し実行で書いたファイルを消してから始める
   const app: AppInput = { inputs: {}, clicked: null, state: null };
-  let result = await run(code, { ...opts, app });
+  let result = await run(code, { ...opts, app: { ...app, wipeFiles: true } });
   for (const a of actions) {
     if (result.status !== 'ok' || !result.app) return { result, failure: null };
     const els = result.app.elements;
+    if ('restart' in a) {
+      app.inputs = {};
+      app.clicked = null;
+      result = await run(code, { ...opts, app: { inputs: {}, clicked: null, state: null } });
+      continue;
+    }
     if ('set' in a) {
       for (const [name, value] of Object.entries(a.set)) {
         const el = find(els, name, WIDGETS);
@@ -73,9 +83,11 @@ export function screenText(elements: UiElement[]): string {
 /** 操作を人が読める文にする */
 export function describeActions(actions: UiAction[]): string {
   return actions
-    .map((a) => ('set' in a
-      ? Object.entries(a.set).map(([k, v]) => `「${k}」に ${v} を入れる`).join('、')
-      : `「${a.click}」を押す`))
+    .map((a) => ('restart' in a
+      ? '「最初から」で開き直す'
+      : 'set' in a
+        ? Object.entries(a.set).map(([k, v]) => `「${k}」に ${v} を入れる`).join('、')
+        : `「${a.click}」を押す`))
     .join(' → ');
 }
 

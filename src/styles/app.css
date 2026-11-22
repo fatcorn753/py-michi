@@ -183,8 +183,11 @@
 .obj-arrows marker path { fill: var(--accent-text); stroke: none; }
 
 /* 学習者が作るアプリの画面(ui の部品) */
+/* 狭い画面では、見出しの下にボタンを 1 行でまとめる */
+.app-frame-bar > span:first-child { white-space: nowrap; }
+.app-frame-bar > .row { flex-wrap: nowrap; gap: var(--space-1); }
 .app-frame { border: 1px solid var(--border-control); border-radius: var(--shape-panel); background: var(--bg-canvas); overflow: hidden; }
-.app-frame-bar { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); padding: var(--space-1) var(--space-2) var(--space-1) var(--space-3); border-bottom: 1px solid var(--border-subtle); background: var(--bg-subtle); }
+.app-frame-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-2); padding: var(--space-1) var(--space-2) var(--space-1) var(--space-3); border-bottom: 1px solid var(--border-subtle); background: var(--bg-subtle); }
 .app-screen { display: flex; flex-direction: column; gap: var(--space-3); padding: var(--space-4); max-width: 34rem; }
 .app-title { font-size: var(--text-xl); line-height: var(--leading-heading); margin: 0; }
 .app-header { font-size: var(--text-md); font-weight: var(--weight-medium); margin: 0; }
