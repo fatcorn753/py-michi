@@ -30,6 +30,10 @@ export interface Step {
   line: number;
   frames: Frame[];
   heap: Record<string, HeapEntry>;
+  /** heap の id を、名前から辿った順に並べたもの */
+  order: string[];
+  /** 関数から戻るときの戻り値の id */
+  ret: string | null;
   /** この時点までの出力の長さ */
   stdoutLen: number;
 }

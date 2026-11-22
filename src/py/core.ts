@@ -12,9 +12,12 @@ export function installTracer(py: PyodideAPI) {
 }
 
 export function runPython(py: PyodideAPI, code: string, opts: PyRunOptions = {}): PyRunResult {
+  // batched は改行まで溜めるので、print(..., end="") の途中経過が測れない。write で受ける
   let stdout = '';
-  py.setStdout({ batched: (s) => { stdout += s + '\n'; } });
-  py.setStderr({ batched: (s) => { stdout += s + '\n'; } });
+  const dec = new TextDecoder();
+  const write = (buf: Uint8Array) => { stdout += dec.decode(buf, { stream: true }); return buf.length; };
+  py.setStdout({ write });
+  py.setStderr({ write });
 
   // input() には、あらかじめ渡された行を順に返す。足りなければ EOF にする
   const lines = (opts.stdin ?? '').split('\n');

@@ -1,19 +1,22 @@
 import { useEffect, useState } from 'react';
 import { Square } from 'lucide-react';
-import { runAsync, stopRun } from '../../interp/runAsync';
-import type { RunResult } from '../../interp/interp';
+import { runPy, stopPy, usePyLoad, warmUp } from '../../py/session';
+import type { PyRunResult } from '../../py/types';
 import { CodeEditor } from '../CodeEditor';
-import { RunPanel } from '../RunPanel';
-import { Stepper } from '../Stepper';
+import { PyRunPanel } from '../py/PyRunPanel';
+import { PyStepper } from '../py/PyStepper';
 import { EXAMPLES } from '../../content/examples';
 
-const KEY = 'c-michi:play';
+const KEY = 'py-michi:play';
 
 export function Playground() {
   const [code, setCode] = useState(() => { try { return localStorage.getItem(KEY) ?? EXAMPLES[0].code; } catch { return EXAMPLES[0].code; } });
   const [stdin, setStdin] = useState('');
-  const [result, setResult] = useState<RunResult | null>(null);
+  const [result, setResult] = useState<PyRunResult | null>(null);
   const [busy, setBusy] = useState(false);
+  const load = usePyLoad();
+
+  useEffect(() => { warmUp(); }, []);
 
   useEffect(() => {
     const t = setTimeout(() => { try { localStorage.setItem(KEY, code); } catch { /* 保存できなくても続ける */ } }, 400);
@@ -21,9 +24,15 @@ export function Playground() {
   }, [code]);
 
   const go = async () => {
+    if (busy) return;
     setBusy(true);
-    setResult(await runAsync(code, { stdin, trace: true }));
-    setBusy(false);
+    try {
+      setResult(await runPy(code, { stdin }));
+    } catch {
+      // 読み込みに失敗したときは、下の案内で知らせる
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
@@ -39,26 +48,35 @@ export function Playground() {
       </div>
       <CodeEditor value={code} onChange={setCode} label="コード" errorLine={result?.error?.line} onRun={go} />
       <div className="td-field">
-        <label className="td-label" htmlFor="stdin">入力(scanf や getchar で読む内容)<span className="td-optional">任意</span></label>
+        <label className="td-label" htmlFor="stdin">入力(input() で 1 行ずつ読む内容)<span className="td-optional">任意</span></label>
         <textarea id="stdin" className="td-input" rows={2} value={stdin} onChange={(e) => setStdin(e.target.value)} spellCheck={false} style={{ fontFamily: 'var(--font-mono)', height: 'auto' }} />
       </div>
+      {load.state === 'loading' && <p className="small muted" role="status">Python を準備しています。初めてのときは 10MB ほど読み込むので、少し時間がかかります。</p>}
+      {load.state === 'error' && (
+        <div className="td-notice" data-tone="error" role="alert">
+          <div>
+            <p className="td-notice-title">Python を読み込めませんでした</p>
+            <p>ネットにつながっているか確かめて、ページを読み込み直してください。({load.detail})</p>
+          </div>
+        </div>
+      )}
       <div className="row row-end">
-        {busy && <button className="td-btn" type="button" onClick={() => stopRun()}><Square className="icon-sm" strokeWidth={1.75} aria-hidden />止める</button>}
-        <button className="td-btn" data-variant="primary" type="button" onClick={go} aria-busy={busy}>実行</button>
+        {busy && <button className="td-btn" type="button" onClick={() => stopPy()}><Square className="icon-sm" strokeWidth={1.75} aria-hidden />止める</button>}
+        <button className="td-btn" data-variant="primary" type="button" onClick={go} aria-busy={busy} disabled={load.state === 'error'}>実行</button>
       </div>
-      {result && <RunPanel result={result} />}
+      {result && <PyRunPanel result={result} />}
       {result && result.trace.length > 1 && (
         <section className="stack" aria-labelledby="step-h">
           <h2 id="step-h">1 行ずつ見る</h2>
-          <Stepper code={code} result={result} />
+          <PyStepper code={code} result={result} />
         </section>
       )}
       <details className="small muted">
-        <summary>このサイトの C でできること・できないこと</summary>
+        <summary>このサイトの Python について</summary>
         <div className="prose">
-          <p>使えるもの: int・char・long・double・unsigned、配列(多次元・可変長)、ポインタ、関数と再帰、文字列、malloc / free、printf / scanf / getchar / fgets、string.h・ctype.h・math.h の主な関数。</p>
-          <p>まだ使えないもの: 構造体(struct)、typedef、関数ポインタ、ファイルの読み書き。構造体は次の版で加えます。</p>
-          <p>本物の C との違い: 本物では黙って壊れる誤り(範囲外アクセスや未初期化の読み出しなど)を、このサイトでは止めて知らせます。</p>
+          <p>ブラウザの中で本物の Python(CPython 3.14 を WebAssembly にした Pyodide)を動かしています。標準ライブラリの多くが使えます。</p>
+          <p>input() は、上の「入力」欄に書いた行を順に読みます。実行の途中で入力を待つことはできません。</p>
+          <p>10 万行を実行しても終わらないとき、または 5 秒たっても終わらないときは、無限ループとみなして止めます。</p>
         </div>
       </details>
     </div>

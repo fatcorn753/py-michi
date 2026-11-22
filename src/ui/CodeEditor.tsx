@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import { EditorState, StateEffect, StateField, RangeSetBuilder } from '@codemirror/state';
 import { EditorView, Decoration, keymap, lineNumbers, highlightActiveLine, highlightActiveLineGutter, type DecorationSet } from '@codemirror/view';
 import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirror/commands';
-import { cpp } from '@codemirror/lang-cpp';
+import { python } from '@codemirror/lang-python';
 import { bracketMatching, indentOnInput, indentUnit, syntaxHighlighting, defaultHighlightStyle } from '@codemirror/language';
 import { closeBrackets, closeBracketsKeymap } from '@codemirror/autocomplete';
 
@@ -50,7 +50,7 @@ export function CodeEditor({ value, onChange, label, errorLine, onRun }: Props) 
           // 教材のコードと同じ 4 文字の字下げにする
           indentUnit.of('    '),
           lineNumbers(), highlightActiveLine(), highlightActiveLineGutter(), history(), indentOnInput(),
-          bracketMatching(), closeBrackets(), cpp(), syntaxHighlighting(defaultHighlightStyle), errorLineField,
+          bracketMatching(), closeBrackets(), python(), syntaxHighlighting(defaultHighlightStyle), errorLineField,
           EditorState.tabSize.of(4),
           keymap.of([
             { key: 'Mod-Enter', run: () => { cb.current.onRun?.(); return true; } },

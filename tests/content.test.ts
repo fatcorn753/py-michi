@@ -1,7 +1,6 @@
 // 教材の検査。例と参照解が実際に動き、問題として成り立っているかを確かめる
 import { describe, expect, it } from 'vitest';
 import { COURSES, DIAG, KCS } from '../src/content';
-import { EXAMPLES } from '../src/content/examples';
 import type { Problem } from '../src/content/types';
 import { run } from '../src/interp/interp';
 import { instantiate, referenceCode, runTests, traceRows } from '../src/learn/grade';
@@ -34,7 +33,7 @@ describe('教材の形', () => {
 });
 
 describe('例題が動く', () => {
-  for (const ex of [...reads, ...EXAMPLES.filter((e) => !e.title.includes('誤り'))]) {
+  for (const ex of reads) {
     it(ex.title, () => {
       const r = run(ex.code, { stdin: ex.stdin });
       expect(r.error, JSON.stringify(r.error)).toBeUndefined();
@@ -42,12 +41,6 @@ describe('例題が動く', () => {
       expect(r.warnings).toEqual([]);
     });
   }
-  it('「わざと誤り」の例は誤りを知らせる', () => {
-    for (const ex of EXAMPLES.filter((e) => e.title.includes('誤り'))) {
-      const r = run(ex.code, { stdin: ex.stdin });
-      expect(!!r.error || r.leaks.length > 0, ex.title).toBe(true);
-    }
-  });
 });
 
 describe('問題が成り立つ', () => {

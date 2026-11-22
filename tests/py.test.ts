@@ -3,6 +3,7 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { loadPyodide, type PyodideAPI } from 'pyodide';
 import { installTracer, runPython } from '../src/py/core';
 import { r, src } from '../src/content/util';
+import { EXAMPLES } from '../src/content/examples';
 
 let py: PyodideAPI;
 beforeAll(async () => {
@@ -103,4 +104,36 @@ describe('runPython', () => {
     const res = runPython(py, 'print(secret)');
     expect(res.error!.type).toBe('NameError');
   });
+
+  it('改行なしの print も、その時点までの出力に入る', () => {
+    const res = runPython(py, 'print("a", end="")\nx = 1\n');
+    expect(res.trace[1].stdoutLen).toBe(1);
+    expect(res.stdout).toBe('a');
+  });
+
+  it('関数から戻るときは戻り値を記録する', () => {
+    const res = runPython(py, src(r`
+      def sq(n):
+          return n * n
+      y = sq(3)
+    `));
+    const ret = res.trace.find((s) => s.event === 'return' && s.ret)!;
+    expect(ret.heap[ret.ret!].repr).toBe('9');
+    // order には heap の id がすべて、辿った順に入る
+    expect(new Set(ret.order)).toEqual(new Set(Object.keys(ret.heap)));
+  });
+});
+
+describe('「自由に書く」の例が動く', () => {
+  for (const ex of EXAMPLES) {
+    it(ex.title, () => {
+      const res = runPython(py, ex.code, { stdin: ex.stdin });
+      if (ex.title.includes('誤り')) {
+        expect(res.status).toBe('error');
+      } else {
+        expect(res.status, JSON.stringify(res.error)).toBe('ok');
+        expect(res.stdout.length).toBeGreaterThan(0);
+      }
+    });
+  }
 });

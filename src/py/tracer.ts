@@ -57,7 +57,9 @@ def _visible(name, value):
         return False
     return True
 
-def _snapshot(frame, event, out_len):
+def _snapshot(frame, event, arg, out_len):
+    # 出力は溜められているので、ここで流して「この時点までの出力」を正しく測る
+    sys.stdout.flush()
     heap, order = {}, []
     frames = []
     f = frame
@@ -67,12 +69,16 @@ def _snapshot(frame, event, out_len):
         frames.append({"name": "<module>" if fname == "<module>" else fname, "line": f.f_lineno, "locals": names})
         f = f.f_back
     frames.reverse()
+    ret = str(_ref(arg, heap, order)) if event == "return" and frame.f_code.co_name != "<module>" else None
     # JSON にしやすいよう、id は文字列にする(JS の数値では大きな id が丸まるため)
     return {
         "event": event,
         "line": frame.f_lineno,
         "frames": [{**fr, "locals": [[k, str(i)] for k, i in fr["locals"]]} for fr in frames],
         "heap": {str(i): _conv(heap[i]) for i in order},
+        # JS のオブジェクトは数字のキーを小さい順に並べ替えるので、出てきた順を別に持つ
+        "order": [str(i) for i in order],
+        "ret": ret,
         "stdoutLen": out_len(),
     }
 
@@ -101,7 +107,7 @@ def run_traced(code, max_steps, max_trace, out_len):
             if _state["steps"] > max_steps:
                 raise StepLimit()
             if len(trace) < max_trace:
-                trace.append(_snapshot(frame, event, out_len))
+                trace.append(_snapshot(frame, event, arg, out_len))
             else:
                 _state["traceTruncated"] = True
         return tracer
@@ -137,6 +143,11 @@ def run_entry(code, max_steps, max_trace, out_len):
     except BaseException as e:
         status = "error"
         err = {"type": type(e).__name__, "message": str(e), "line": _user_line(e.__traceback__)}
+    try:
+        sys.stdout.flush()
+        sys.stderr.flush()
+    except BaseException:
+        pass
     _state["status"] = status
     _state["error"] = err
     return state_json()
