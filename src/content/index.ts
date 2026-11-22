@@ -3,6 +3,7 @@ import type { Course } from './types';
 import { VARS, COND, LOOP } from './main1';
 import { LIST, FUNC, ALIAS } from './main2';
 import { PROJECT } from './project';
+import { KAKEIBO } from './kakeibo';
 
 export { KCS } from './kcs';
 export { DIAG } from './diag';
@@ -15,4 +16,4 @@ export const MAIN: Course = {
 };
 
 /** 先頭が本編。続いて作品コース */
-export const COURSES: Course[] = [MAIN, PROJECT];
+export const COURSES: Course[] = [MAIN, KAKEIBO, PROJECT];

@@ -7,6 +7,9 @@ import { runCode } from '../../learn/grade';
 import type { PyRunResult } from '../../py/types';
 import { ProblemView } from '../Problems';
 import { PyStepper } from '../py/PyStepper';
+import { AppPanel } from '../py/AppPanel';
+import { CodeView } from '../CodeEditor';
+import { usesUi } from '../../py/app';
 import { Md } from '../Md';
 
 const ic = { className: 'icon-sm', strokeWidth: 1.75, 'aria-hidden': true } as const;
@@ -69,7 +72,8 @@ function LessonPlayer({ courseId, unitId, lesson, next }: { courseId: string; un
   useEffect(() => {
     let live = true;
     setExampleRun(null);
-    if (step.kind === 'read' && step.example) runCode(step.example, { stdin: step.stdin }).then((r) => { if (live) setExampleRun(r); });
+    // アプリの例題は AppPanel が自分で動かすので、ここでは動かさない
+    if (step.kind === 'read' && step.example && !usesUi(step.example)) runCode(step.example, { stdin: step.stdin }).then((r) => { if (live) setExampleRun(r); });
     return () => { live = false; };
   }, [step]);
   const goNext = () => {
@@ -90,7 +94,14 @@ function LessonPlayer({ courseId, unitId, lesson, next }: { courseId: string; un
         <section className="stack">
           <h2>{step.title}</h2>
           <Md text={step.body} />
-          {step.example && !exampleRun && <p className="small muted" role="status">例題を準備しています…</p>}
+          {step.example && usesUi(step.example) && (
+            <div className="stack">
+              <p className="small muted">例題のアプリです。下の画面の部品を実際に触ってみてください。触るたびに、コードが上から実行し直されます。</p>
+              <CodeView code={step.example} />
+              <AppPanel key={step.title} code={step.example} run={runCode} />
+            </div>
+          )}
+          {step.example && !usesUi(step.example) && !exampleRun && <p className="small muted" role="status">例題を準備しています…</p>}
           {step.example && exampleRun && (
             <div className="stack">
               <p className="small muted">例題です。「次へ」で 1 行ずつ動かして、名前がどのオブジェクトを指すかを見てください。</p>

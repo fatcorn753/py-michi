@@ -27,4 +27,8 @@ export const KCS: KC[] = [
   { id: 'count', label: '辞書で数える', confusable: ['dict'] },
   { id: 'sort', label: 'sorted と key で並べる' },
   { id: 'format', label: '桁をそろえて表示する', confusable: ['print'] },
+  { id: 'ui-out', label: 'ui で画面に出す', confusable: ['print'] },
+  { id: 'ui-input', label: '入力欄から値を受け取る' },
+  { id: 'rerun', label: '触るたびに上から実行し直す', confusable: ['ui-input'] },
+  { id: 'button', label: 'ボタンは押した直後だけ True', confusable: ['rerun'] },
 ];

@@ -8,6 +8,8 @@ import { store } from '../learn/store';
 import { CodeEditor, CodeView } from './CodeEditor';
 import { PyRunPanel } from './py/PyRunPanel';
 import { PyStepper } from './py/PyStepper';
+import { AppPanel } from './py/AppPanel';
+import { usesUi } from '../py/app';
 
 const ic = { strokeWidth: 1.75, 'aria-hidden': true } as const;
 
@@ -350,6 +352,9 @@ function Write({ p, report, giveUp }: { p: Problem & { type: 'write' } } & Commo
   const [tries, setTries] = useState(0);
   const [busy, setBusy] = useState(false);
   const [showSol, setShowSol] = useState(false);
+  // 画面のあるアプリの問題は、試しに実行するとアプリを開いて触れるようにする
+  const isApp = usesUi(p.solution);
+  const [appRun, setAppRun] = useState<{ n: number; code: string } | null>(null);
 
   useEffect(() => {
     const t = setTimeout(() => store.saveDraft(p.id, code), 400);
@@ -357,12 +362,17 @@ function Write({ p, report, giveUp }: { p: Problem & { type: 'write' } } & Commo
   }, [code, p.id]);
 
   const tryRun = async () => {
+    if (isApp) {
+      setGrade(null);
+      setAppRun((a) => ({ n: (a?.n ?? 0) + 1, code }));
+      return;
+    }
     setBusy(true); setGrade(null);
     setResult(await runCode(code, { stdin }).finally(() => setBusy(false)));
   };
   const submit = async () => {
     if (busy) return;
-    setResult(null); setBusy(true);
+    setResult(null); setAppRun(null); setBusy(true);
     const g = await runTests(code, p.solution, p.tests).finally(() => setBusy(false));
     setGrade(g); setTries(tries + 1);
     // ヒントを見てから正解した場合は、自力の正解として数えない
@@ -372,10 +382,12 @@ function Write({ p, report, giveUp }: { p: Problem & { type: 'write' } } & Commo
   return (
     <>
       <CodeEditor value={code} onChange={(v) => { setCode(v); setGrade(null); }} label="コード" errorLine={errLine} onRun={tryRun} />
-      <div className="td-field">
-        <label className="td-label" htmlFor={`in-${p.id}`}>試しに動かすときの入力<span className="td-optional">任意</span></label>
-        <textarea className="td-input" id={`in-${p.id}`} rows={2} value={stdin} onChange={(e) => setStdin(e.target.value)} spellCheck={false} style={{ fontFamily: 'var(--font-mono)', height: 'auto' }} />
-      </div>
+      {!isApp && (
+        <div className="td-field">
+          <label className="td-label" htmlFor={`in-${p.id}`}>試しに動かすときの入力<span className="td-optional">任意</span></label>
+          <textarea className="td-input" id={`in-${p.id}`} rows={2} value={stdin} onChange={(e) => setStdin(e.target.value)} spellCheck={false} style={{ fontFamily: 'var(--font-mono)', height: 'auto' }} />
+        </div>
+      )}
       <div className="row row-end">
         {hints < p.hints.length && !grade?.ok && (
           <button className="td-btn" data-variant="ghost" type="button" onClick={() => setHints(hints + 1)}><Lightbulb className="icon-sm" {...ic} />ヒント({hints + 1}/{p.hints.length})</button>
@@ -389,6 +401,7 @@ function Write({ p, report, giveUp }: { p: Problem & { type: 'write' } } & Commo
           {p.hints.slice(0, hints).map((h, i) => <li key={i}><Inline text={h} /></li>)}
         </ol>
       )}
+      {appRun && <AppPanel key={appRun.n} code={appRun.code} run={runCode} />}
       {result && (
         <div className="stack">
           <PyRunPanel result={result} />
@@ -423,14 +436,16 @@ function GradeView({ grade }: { grade: Grade }) {
         <div className="stack">
           {firstBad.stdin !== undefined && !firstBad.hidden && <div><p className="label-sm">この入力で確かめました</p><pre className="output">{firstBad.stdin}</pre></div>}
           {firstBad.note && !firstBad.hidden && <pre className="output">{firstBad.note}</pre>}
+          {firstBad.failure && <p>{firstBad.failure}</p>}
           {firstBad.run.error ? (
-            <PyRunPanel result={firstBad.run} />
+            <PyRunPanel result={firstBad.run} showOutput={!firstBad.screen} />
           ) : (
             <div className="diff">
-              <div><p className="label-sm">期待する出力</p><pre className="output">{firstBad.hidden ? '(このテストの中身は見せていません)' : firstBad.want}</pre></div>
-              <div><p className="label-sm">あなたのプログラムの出力</p><pre className="output">{firstBad.got}</pre></div>
+              <div><p className="label-sm">{firstBad.screen ? '期待する画面' : '期待する出力'}</p><pre className="output">{firstBad.hidden ? '(このテストの中身は見せていません)' : firstBad.want}</pre></div>
+              <div><p className="label-sm">{firstBad.screen ? 'あなたのアプリの画面' : 'あなたのプログラムの出力'}</p><pre className="output">{firstBad.got}</pre></div>
             </div>
           )}
+          {firstBad.screen && <p className="small muted">画面は文字で表しています。# は見出し、[名前: 値] は入力欄、(名前) はボタンです。</p>}
         </div>
       )}
     </div>

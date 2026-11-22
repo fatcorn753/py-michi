@@ -13,6 +13,8 @@ interface ProblemBase {
   explain?: string;
 }
 
+import type { UiAction } from '../py/app';
+
 export interface TestCase {
   stdin?: string;
   /** 省略すると参照解の出力を正解にする */
@@ -22,6 +24,8 @@ export interface TestCase {
   set?: Record<string, string>;
   /** 末尾に足して動かすコード。関数を別の引数でも呼んで確かめる */
   append?: string;
+  /** ui のアプリとして動かし、この操作をした後の画面を比べる(空の配列なら開いた直後の画面) */
+  actions?: UiAction[];
 }
 
 export type Problem = ProblemBase & (

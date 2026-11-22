@@ -2,6 +2,7 @@
 import type { Params, Problem, TestCase } from '../content/types';
 import type { PyRunOptions, PyRunResult } from '../py/types';
 import { lookup } from '../py/show';
+import { describeActions, replayApp, screenText } from '../py/app';
 import { rng } from './engine';
 
 export type PyRun = (code: string, opts?: PyRunOptions) => Promise<PyRunResult>;
@@ -44,8 +45,12 @@ export interface TestResult {
   verdict: 'same' | 'format' | 'different' | 'error';
   run: PyRunResult;
   hidden?: boolean;
-  /** set・append で変えた中身の説明 */
+  /** set・append・actions で変えた中身の説明 */
   note?: string;
+  /** アプリの画面を比べたテスト */
+  screen?: boolean;
+  /** 操作をやり通せなかった理由(ボタンが見つからないなど) */
+  failure?: string;
 }
 
 export interface Grade {
@@ -60,15 +65,27 @@ const refCache = new Map<string, string>();
 
 export async function expected(ref: string, t: TestCase): Promise<string> {
   if (t.expect !== undefined) return t.expect;
-  const key = ref + '\u0000' + (t.stdin ?? '');
+  const key = ref + '\u0000' + (t.stdin ?? '') + '\u0000' + JSON.stringify(t.actions ?? null);
   let v = refCache.get(key);
   if (v === undefined) {
-    const r = await runner(ref, { stdin: t.stdin, maxTrace: 0 });
-    if (r.status !== 'ok') throw new Error(`参照解が実行できません: ${r.error?.type} ${r.error?.message}`);
-    v = r.stdout;
+    const got = await runOnce(ref, t);
+    if (got.run.status !== 'ok' || got.failure) {
+      throw new Error(`参照解が実行できません: ${got.failure ?? `${got.run.error?.type} ${got.run.error?.message}`}`);
+    }
+    v = got.out;
     refCache.set(key, v);
   }
   return v;
+}
+
+/** テスト 1 つ分を動かし、比べる文字列を作る。アプリなら最後の画面、そうでなければ print の出力 */
+async function runOnce(code: string, t: TestCase, maxSteps?: number): Promise<{ out: string; run: PyRunResult; failure: string | null }> {
+  if (t.actions) {
+    const { result, failure } = await replayApp(runner, code, t.actions, { stdin: t.stdin, maxSteps, maxTrace: 0 });
+    return { out: result.app ? screenText(result.app.elements) : '', run: result, failure };
+  }
+  const r = await runner(code, { stdin: t.stdin, maxSteps, maxTrace: 0 });
+  return { out: r.stdout, run: r, failure: null };
 }
 
 /** テストの set・append を、解答にも参照解にも同じように当てる */
@@ -86,6 +103,7 @@ function testNote(t: TestCase): string | undefined {
   const set = Object.entries(t.set ?? {});
   if (set.length) parts.push(`値を ${set.map(([k, v]) => `${k} = ${v}`).join('、')} に変えて動かしました。`);
   if (t.append) parts.push(`最後に次の行を足して動かしました。\n${t.append}`);
+  if (t.actions?.length) parts.push(`次の操作をして確かめました: ${describeActions(t.actions)}`);
   return parts.length ? parts.join('\n') : undefined;
 }
 
@@ -94,9 +112,12 @@ export async function runTests(code: string, ref: string, tests: TestCase[]): Pr
   // 1 つずつ順に動かす(実行環境は 1 つなので、並べても速くならない)
   for (const t of tests) {
     const want = await expected(applyTest(ref, t), t);
-    const r = await runner(applyTest(code, t), { stdin: t.stdin, maxSteps: 300_000, maxTrace: 0 });
-    const verdict = r.status !== 'ok' ? 'error' : compareOutput(r.stdout, want);
-    results.push({ stdin: t.stdin, want, got: r.stdout, verdict, run: r, hidden: t.hidden, note: testNote(t) });
+    const { out, run: r, failure } = await runOnce(applyTest(code, t), t, 300_000);
+    const verdict = r.status !== 'ok' ? 'error' : failure ? 'different' : compareOutput(out, want);
+    results.push({
+      stdin: t.stdin, want, got: out, verdict, run: r, hidden: t.hidden, note: testNote(t),
+      screen: !!t.actions, failure: failure ?? undefined,
+    });
   }
   const passed = results.every((t) => t.verdict === 'same' || t.verdict === 'format');
   return {

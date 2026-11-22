@@ -67,6 +67,30 @@ export const EXAMPLES: { title: string; code: string; stdin?: string }[] = [
     `),
   },
   {
+    title: '家計簿アプリ(画面あり)',
+    code: src(r`
+      import ui
+
+      if "items" not in ui.state:
+          ui.state["items"] = []
+
+      ui.title("家計簿")
+      name = ui.text_input("品名")
+      price = ui.number_input("金額")
+      kind = ui.selectbox("分類", ["食費", "日用品", "その他"])
+      if ui.button("追加") and name:
+          ui.state["items"].append({"品名": name, "分類": kind, "金額": price})
+
+      items = ui.state["items"]
+      ui.table(items)
+      ui.metric("合計", sum(x["金額"] for x in items))
+      by_kind = {}
+      for x in items:
+          by_kind[x["分類"]] = by_kind.get(x["分類"], 0) + x["金額"]
+      ui.bar_chart(by_kind)
+    `),
+  },
+  {
     title: '範囲外の番号(わざと誤り)',
     code: src(r`
       a = [1, 2, 3]

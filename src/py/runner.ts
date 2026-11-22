@@ -8,7 +8,7 @@ import type { FromWorker, ToWorker } from './worker';
 import type { PyRunOptions, PyRunResult } from './types';
 
 const empty = (status: PyRunResult['status'], message: string): PyRunResult => ({
-  status, steps: 0, trace: [], traceTruncated: false, stdout: '',
+  status, steps: 0, trace: [], traceTruncated: false, stdout: '', app: null,
   error: { type: status === 'timeout' ? 'Timeout' : 'Stopped', message, line: null },
 });
 

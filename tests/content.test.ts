@@ -4,6 +4,28 @@ import { COURSES, DIAG, KCS } from '../src/content';
 import type { Problem } from '../src/content/types';
 import { applyTest, checkTraceCell, instantiate, referenceCode, runTests, setRunner, traceRows } from '../src/learn/grade';
 import { nodePy, nodeRun } from './pyNode';
+import { replayApp, usesUi } from '../src/py/app';
+import type { UiElement } from '../src/py/types';
+
+/** 画面を、その画面をそのまま出すだけの ui のプログラムにする(直書きの答えの代わり) */
+function literalApp(elements: UiElement[]): string {
+  const j = (v: unknown) => JSON.stringify(v);
+  const lines = ['import ui'];
+  for (const e of elements) {
+    switch (e.kind) {
+      case 'title': case 'header': case 'write': lines.push(`ui.${e.kind}(${j(e.text)})`); break;
+      case 'divider': lines.push('ui.divider()'); break;
+      case 'text_input': lines.push(`ui.text_input(${j(e.label)}, ${j(e.value)}, key=${j(e.id)})`); break;
+      case 'number_input': lines.push(`ui.number_input(${j(e.label)}, ${j(e.value)}, key=${j(e.id)})`); break;
+      case 'selectbox': lines.push(`ui.selectbox(${j(e.label)}, ${j([e.value])}, key=${j(e.id)})`); break;
+      case 'button': lines.push(`ui.button(${j(e.label)}, key=${j(e.id)})`); break;
+      case 'metric': lines.push(`ui.metric(${j(e.label)}, ${j(e.text)})`); break;
+      case 'table': lines.push(`ui.table(${j(e.columns ? e.rows.map((r) => Object.fromEntries(e.columns!.map((c, i) => [c, r[i]]))) : e.rows)})`); break;
+      case 'bar_chart': lines.push(`ui.bar_chart(${j(Object.fromEntries(e.data))})`); break;
+    }
+  }
+  return lines.join('\n');
+}
 
 const problems: Problem[] = [...DIAG];
 const reads: { title: string; code: string; stdin?: string }[] = [];
@@ -41,6 +63,13 @@ describe('教材の形', () => {
 describe('例題が動く', () => {
   for (const ex of reads) {
     it(ex.title, async () => {
+      if (usesUi(ex.code)) {
+        // アプリの例題は、開いた直後の画面に部品が出る
+        const r = await nodeRun(ex.code, { app: { inputs: {}, clicked: null, state: null } });
+        expect(r.status, JSON.stringify(r.error)).toBe('ok');
+        expect(r.app?.elements.length).toBeGreaterThan(0);
+        return;
+      }
       const r = await nodeRun(ex.code, { stdin: ex.stdin });
       expect(r.status, JSON.stringify(r.error)).toBe('ok');
       expect(r.stdout.length).toBeGreaterThan(0);
@@ -85,9 +114,15 @@ describe('問題が成り立つ', () => {
               expect(SYNTAX, `${p.id} 書き始め ${JSON.stringify(s.error)}`).not.toContain(s.error?.type);
               // 書き始めのままでは合格しない
               expect((await runTests(p.starter, ref, p.tests)).ok, p.id).toBe(false);
-              // 最初のテストの出力をそのまま print するだけでは合格しない(数字の直書きを防げているか)
-              const first = await nodeRun(applyTest(ref, p.tests[0]), { stdin: p.tests[0].stdin });
-              const literal = `print(${JSON.stringify(first.stdout)}, end="")`;
+              // 最初のテストの出力(アプリなら画面)をそのまま出すだけでは合格しない(数字の直書きを防げているか)
+              let literal: string;
+              if (p.tests[0].actions) {
+                const { result } = await replayApp(nodeRun, applyTest(ref, p.tests[0]), p.tests[0].actions);
+                literal = literalApp(result.app?.elements ?? []);
+              } else {
+                const first = await nodeRun(applyTest(ref, p.tests[0]), { stdin: p.tests[0].stdin });
+                literal = `print(${JSON.stringify(first.stdout)}, end="")`;
+              }
               expect((await runTests(literal, ref, p.tests)).ok, `${p.id} 直書きで合格してしまう`).toBe(false);
             }
             if (p.type === 'parsons') {

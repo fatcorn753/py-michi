@@ -7,7 +7,31 @@ export interface PyRunOptions {
   maxSteps?: number;
   /** 記録するステップの上限 */
   maxTrace?: number;
+  /** ui を使うアプリとして動かす。部品の値・押したボタン・持ち越す state を渡す */
+  app?: AppInput;
 }
+
+export interface AppInput {
+  /** 部品の id(ふつうはラベル)→ 値 */
+  inputs: Record<string, string | number>;
+  /** この実行の直前に押したボタンの id */
+  clicked: string | null;
+  state: unknown;
+}
+
+/** ui の部品 1 つ。実行のたびに上から並べ直したもの */
+export type UiElement =
+  | { kind: 'title' | 'header' | 'write'; text: string }
+  | { kind: 'divider' }
+  | { kind: 'text_input'; id: string; label: string; value: string }
+  | { kind: 'number_input'; id: string; label: string; value: number }
+  | { kind: 'selectbox'; id: string; label: string; value: string; options: string[] }
+  | { kind: 'button'; id: string; label: string }
+  | { kind: 'table'; columns: string[] | null; rows: string[][] }
+  | { kind: 'bar_chart'; data: [string, number][] }
+  | { kind: 'metric'; label: string; text: string };
+
+export interface AppOutput { elements: UiElement[]; state: unknown }
 
 export interface HeapEntry {
   type: string;
@@ -47,4 +71,6 @@ export interface PyRunResult {
   trace: Step[];
   traceTruncated: boolean;
   stdout: string;
+  /** アプリとして動かしたときの画面。そうでなければ null */
+  app: AppOutput | null;
 }

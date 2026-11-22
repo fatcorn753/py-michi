@@ -23,7 +23,7 @@ export function Home() {
             <li>単元の終わりの確認テストに合格すると、次の単元が開きます。</li>
             <li>忘れかけたころに、数字を変えた問題で復習します。</li>
           </ul>
-          <p>本編で文法を学んだあと、文章の単語を数えて多い順に並べる「テキスト集計ツール」を作ります。</p>
+          <p>本編で文法を学んだあと、入力欄とボタンのある「家計簿アプリ」や、文章の単語を数えて多い順に並べる「テキスト集計ツール」を作ります。</p>
         </div>
         <div className="row row-end">
           <button className="td-btn" data-variant="primary" type="button" onClick={() => store.update(() => ({ started: true }))}>始める</button>

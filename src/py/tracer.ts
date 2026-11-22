@@ -128,11 +128,16 @@ def _user_line(tb):
         tb = tb.tb_next
     return line
 
-def run_entry(code, max_steps, max_trace, out_len):
-    """実行して、状態・エラー・記録を JSON 文字列で返す"""
+def run_entry(code, max_steps, max_trace, out_len, app_json=None):
+    """実行して、状態・エラー・記録を JSON 文字列で返す。app_json があれば ui の画面も返す"""
     status, err = "ok", None
+    app = app_json is not None
+    # アプリでなくても毎回空にする(前の実行の部品や state を持ち越さないため)
+    ui_begin(app_json)
     try:
         run_traced(code, max_steps, max_trace, out_len)
+        if app:
+            _state["app"] = ui_end()
     except StepLimit:
         status = "step-limit"
     except KeyboardInterrupt:
@@ -143,6 +148,11 @@ def run_entry(code, max_steps, max_trace, out_len):
     except BaseException as e:
         status = "error"
         err = {"type": type(e).__name__, "message": str(e), "line": _user_line(e.__traceback__)}
+    if app and status != "ok":
+        # 途中で止まっても、そこまでに出した部品は見せる。state は持ち越さない(壊れた値を残さないため)
+        _state["app"] = {"elements": _ctx.elements, "state": json.loads(app_json).get("state")}
+    elif not app:
+        _state["app"] = None
     try:
         sys.stdout.flush()
         sys.stderr.flush()

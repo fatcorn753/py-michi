@@ -4,6 +4,7 @@ import type { PyodideAPI } from 'pyodide';
 import { runPython } from '../src/py/core';
 import { nodePy } from './pyNode';
 import { r, src } from '../src/content/util';
+import { usesUi } from '../src/py/app';
 import { EXAMPLES } from '../src/content/examples';
 
 let py: PyodideAPI;
@@ -124,8 +125,12 @@ describe('runPython', () => {
 describe('「自由に書く」の例が動く', () => {
   for (const ex of EXAMPLES) {
     it(ex.title, () => {
-      const res = runPython(py, ex.code, { stdin: ex.stdin });
-      if (ex.title.includes('誤り')) {
+      const app = usesUi(ex.code) ? { inputs: {}, clicked: null, state: null } : undefined;
+      const res = runPython(py, ex.code, { stdin: ex.stdin, app });
+      if (app) {
+        expect(res.status, JSON.stringify(res.error)).toBe('ok');
+        expect(res.app!.elements.length).toBeGreaterThan(0);
+      } else if (ex.title.includes('誤り')) {
         expect(res.status).toBe('error');
       } else {
         expect(res.status, JSON.stringify(res.error)).toBe('ok');

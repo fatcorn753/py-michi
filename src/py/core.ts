@@ -2,12 +2,15 @@
 // 読み込み方(CDN かローカルか)には触れず、読み込み済みの pyodide を受け取る。
 import type { PyodideAPI } from 'pyodide';
 import { TRACER_PY } from './tracer';
+import { UI_PY } from './uiModule';
 import type { PyRunOptions, PyRunResult } from './types';
 
 export const DEFAULTS = { maxSteps: 100_000, maxTrace: 2_000 } as const;
 
 /** トレーサーを読み込む。pyodide を読み込んだ直後に 1 回だけ呼ぶ */
 export function installTracer(py: PyodideAPI) {
+  // ui を先に読む。tracer の run_entry が ui_begin / ui_end を使う
+  py.runPython(UI_PY, { globals: py.globals });
   py.runPython(TRACER_PY, { globals: py.globals });
 }
 
@@ -32,11 +35,12 @@ export function runPython(py: PyodideAPI, code: string, opts: PyRunOptions = {})
       opts.maxSteps ?? DEFAULTS.maxSteps,
       opts.maxTrace ?? DEFAULTS.maxTrace,
       () => stdout.length,
+      opts.app ? JSON.stringify(opts.app) : undefined,
     );
     const st = JSON.parse(json);
     return {
       status: st.status, error: st.error, steps: st.steps,
-      trace: st.trace, traceTruncated: st.traceTruncated, stdout,
+      trace: st.trace, traceTruncated: st.traceTruncated, stdout, app: st.app ?? null,
     };
   } finally {
     entry.destroy();

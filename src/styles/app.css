@@ -181,3 +181,18 @@
 .obj-arrows { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
 .obj-arrows path { fill: none; stroke: var(--accent-text); stroke-width: 1.5; }
 .obj-arrows marker path { fill: var(--accent-text); stroke: none; }
+
+/* 学習者が作るアプリの画面(ui の部品) */
+.app-frame { border: 1px solid var(--border-control); border-radius: var(--shape-panel); background: var(--bg-canvas); overflow: hidden; }
+.app-frame-bar { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); padding: var(--space-1) var(--space-2) var(--space-1) var(--space-3); border-bottom: 1px solid var(--border-subtle); background: var(--bg-subtle); }
+.app-screen { display: flex; flex-direction: column; gap: var(--space-3); padding: var(--space-4); max-width: 34rem; }
+.app-title { font-size: var(--text-xl); line-height: var(--leading-heading); margin: 0; }
+.app-header { font-size: var(--text-md); font-weight: var(--weight-medium); margin: 0; }
+.app-text { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.app-screen hr { border: 0; border-top: 1px solid var(--border-subtle); margin: 0; width: 100%; }
+.app-bars { display: grid; gap: var(--space-2); }
+.app-bar { display: grid; grid-template-columns: minmax(3em, auto) 1fr auto; gap: var(--space-2); align-items: center; font-size: var(--text-sm); }
+.app-bar-label { overflow-wrap: anywhere; }
+.app-bar-track { height: 0.75rem; border-radius: var(--radius-sm); background: var(--bg-subtle); overflow: hidden; }
+.app-bar-fill { display: block; height: 100%; background: var(--accent-solid); transition: width var(--dur-base) var(--ease-standard); }
+.app-bar-value { font-family: var(--font-mono); color: var(--text-secondary); }
