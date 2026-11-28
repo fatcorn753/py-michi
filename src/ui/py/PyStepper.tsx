@@ -51,7 +51,11 @@ export function PyStepper({ code, result, predictFirst = false }: Props) {
   const failed = isLast && result.status !== 'ok';
 
   return (
-    <div className="stack" onKeyDown={onKey}>
+    <div className="stack step-root" onKeyDown={onKey}>
+      <label className="td-check">
+        <span>予測してから見る</span>
+        <input className="td-switch" type="checkbox" role="switch" checked={predict} onChange={(e) => { setPredict(e.target.checked); setRevealed(true); }} />
+      </label>
       <div className="step-controls" role="group" aria-label="ステップ実行">
         <button className="td-btn" data-icon-only type="button" aria-label="最初へ" onClick={() => go(0)} disabled={i === 0}><ChevronFirst className="icon" strokeWidth={1.75} aria-hidden /></button>
         <button className="td-btn" data-icon-only type="button" aria-label="1 つ戻る(←)" onClick={() => go(i - 1)} disabled={i === 0}><ChevronLeft className="icon" strokeWidth={1.75} aria-hidden /></button>
@@ -61,10 +65,6 @@ export function PyStepper({ code, result, predictFirst = false }: Props) {
         <button className="td-btn" data-icon-only type="button" aria-label="最後へ" onClick={() => go(last)} disabled={isLast}><ChevronLast className="icon" strokeWidth={1.75} aria-hidden /></button>
         <input type="range" min={0} max={last} value={i} onChange={(e) => { setRevealed(true); setI(+e.target.value); }} aria-label="何歩目かを選ぶ" />
         <span className="step-count" aria-live="polite">{i + 1} / {trace.length}</span>
-        <label className="td-check">
-          <span>予測してから見る</span>
-          <input className="td-switch" type="checkbox" role="switch" checked={predict} onChange={(e) => { setPredict(e.target.checked); setRevealed(true); }} />
-        </label>
       </div>
       {predict && !revealed && <p className="small muted" role="status">直前の行で、どの名前がどこを指すようになったか予想してから「答えを見る」を押してください。</p>}
       {result.traceTruncated && <p className="small muted">記録は最初の {trace.length.toLocaleString()} 歩までです。</p>}
